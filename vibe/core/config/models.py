@@ -79,6 +79,16 @@ class SessionLoggingConfig(BaseSettings):
         return str(Path(v).expanduser().resolve())
 
 
+class VibeVMConfig(BaseSettings):
+    model_config = SettingsConfigDict(extra="ignore")
+
+    enabled: bool = False
+    context_budget: int = 100_000
+    evict_target_ratio: float = 0.8
+    min_page_tokens: int = 400
+    protect_recent_turns: int = 2
+
+
 class ProviderConfig(BaseModel):
     name: str
     api_base: str

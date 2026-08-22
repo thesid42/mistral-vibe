@@ -57,6 +57,7 @@ from vibe.core.config.models import (
     TTSClient,
     TTSModelConfig,
     TTSProviderConfig,
+    VibeVMConfig,
 )
 from vibe.core.config.patch import (
     AddOperationPatch,
@@ -175,6 +176,7 @@ __all__ = [
     "UntrustedLayerError",
     "VibeConfigSchema",
     "VibeConfigSchemaType",
+    "VibeVMConfig",
     "WithConcatMerge",
     "WithConflictMerge",
     "WithDeepMerge",

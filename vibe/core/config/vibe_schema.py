@@ -49,6 +49,7 @@ from vibe.core.config.models import (
     TranscribeProviderConfig,
     TTSModelConfig,
     TTSProviderConfig,
+    VibeVMConfig,
     normalize_model_configs,
     serialize_model_configs,
 )
@@ -520,6 +521,9 @@ class VibeConfigSchema(ConfigSchema):
     )
     experiments: Annotated[ExperimentsConfig, WithReplaceMerge()] = Field(
         default_factory=ExperimentsConfig
+    )
+    vibevm: Annotated[VibeVMConfig, WithReplaceMerge()] = Field(
+        default_factory=VibeVMConfig
     )
 
     def resolve_default_model_alias(self) -> str:

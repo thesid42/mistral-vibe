@@ -185,6 +185,8 @@ from vibe.core.utils import (
     get_user_cancellation_message,
     is_user_cancellation_event,
 )
+from vibe.core.vibevm import registry as vibevm_registry
+from vibe.core.vibevm.pager import VibeVM
 from vibe.observability.logging import log_model_call_success, logger
 from vibe.setup.auth.whoami import WhoAmICache
 from vibe.user_content import UserDisplayContent, UserResource
@@ -633,6 +635,10 @@ class AgentLoop(AgentLoopHooksMixin):  # noqa: PLR0904
             telemetry_client=self.telemetry_client,
             session_ids=lambda: (self.session_id, self.parent_session_id),
         )
+        self.vibevm = VibeVM(
+            session_id=self.session_id, config_getter=lambda: self.config
+        )
+        vibevm_registry.register(self.session_id, self.vibevm)
         self._teleport_service: TeleportService | None = None
 
         Thread(
@@ -2513,6 +2519,8 @@ class AgentLoop(AgentLoopHooksMixin):  # noqa: PLR0904
         self, messages: Sequence[LLMMessage], active_model: ModelConfig
     ) -> Sequence[LLMMessage]:
         messages = select_model_context(messages)
+        if self.vibevm.enabled:
+            messages = self.vibevm.apply(messages)
         if active_model.supports_images:
             return messages
         if not any(m.images for m in messages):
@@ -2885,6 +2893,8 @@ class AgentLoop(AgentLoopHooksMixin):  # noqa: PLR0904
             raise
         self.session_id = session_id
         self.parent_session_id = parent_session_id
+        self.vibevm.rebind(self.session_id)
+        vibevm_registry.register(self.session_id, self.vibevm)
         self.replace_session_lease(lease)
         await self.initialize_experiments()
         self.emit_new_session_telemetry()
@@ -3000,6 +3010,8 @@ class AgentLoop(AgentLoopHooksMixin):  # noqa: PLR0904
         self._current_user_message_id = None
         self._is_user_prompt_call = False
         self._reactive_recovery_used = False
+        self.vibevm.rebind(self.session_id)
+        vibevm_registry.register(self.session_id, self.vibevm)
 
     @requires_init
     async def clear_history(self) -> None:

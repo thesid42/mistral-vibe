@@ -25,6 +25,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS page_fts USING fts5(page_id UNINDEXED, summar
 
 _FTS_RESERVED = frozenset({"AND", "OR", "NOT", "NEAR"})
 _TERM_PATTERN = re.compile(r"\w+")
+_MIN_FILENAME_TERM_LEN = 3
 
 
 def utc_now_iso() -> str:
@@ -63,6 +64,33 @@ def _extract_terms(query: str) -> list[str]:
 
 def _sanitize_fts_query(query: str) -> str:
     return " OR ".join(_extract_terms(query))
+
+
+def filename_match_terms(query: str) -> list[str]:
+    """Query terms usable for filename matching: lowercased, length >= 3.
+
+    Short terms like "py" from "auth.py" are excluded so they don't boost
+    every Python file in the store.
+    """
+    lowered = (t.lower() for t in _extract_terms(query))
+    return [t for t in lowered if len(t) >= _MIN_FILENAME_TERM_LEN]
+
+
+def page_matches_filename(page: ContextPage, terms: list[str]) -> bool:
+    """True if a filename term is a substring of page.source_path's basename."""
+    if not page.source_path:
+        return False
+    basename = Path(page.source_path).name.lower()
+    return any(term in basename for term in terms)
+
+
+def _rank_by_filename(pages: list[ContextPage], terms: list[str]) -> list[ContextPage]:
+    """Stable-partition pages so filename matches come first, order preserved."""
+    if not terms:
+        return pages
+    matched = [p for p in pages if page_matches_filename(p, terms)]
+    unmatched = [p for p in pages if not page_matches_filename(p, terms)]
+    return matched + unmatched
 
 
 class PageStore:
@@ -166,6 +194,7 @@ class PageStore:
             )
 
     def search(self, query: str, limit: int = 5) -> list[ContextPage]:
+        pool_size = max(limit * 3, 10)
         if self.fts_enabled:
             sanitized = _sanitize_fts_query(query)
             if sanitized:
@@ -173,9 +202,10 @@ class PageStore:
                     rows = self._conn.execute(
                         "SELECT p.* FROM page_fts f JOIN pages p ON p.id = f.page_id "
                         "WHERE f MATCH ? ORDER BY f.rank LIMIT ?",
-                        (sanitized, limit),
+                        (sanitized, pool_size),
                     ).fetchall()
-                    return [page_from_row(row) for row in rows]
+                    pages = [page_from_row(row) for row in rows]
+                    return _rank_by_filename(pages, filename_match_terms(query))[:limit]
                 except sqlite3.OperationalError:
                     pass
         return self._search_like(query, limit)
@@ -193,7 +223,9 @@ class PageStore:
             if hits:
                 scored.append((hits, page))
         scored.sort(key=lambda item: item[0], reverse=True)
-        return [page for _, page in scored[:limit]]
+        pool_size = max(limit * 3, 10)
+        pool = [page for _, page in scored[:pool_size]]
+        return _rank_by_filename(pool, filename_match_terms(query))[:limit]
 
     def next_page_id(self) -> str:
         row = self._conn.execute(

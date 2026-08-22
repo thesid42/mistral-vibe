@@ -13,7 +13,11 @@ from vibe.core.paths import VM_DIR
 from vibe.core.types import LLMMessage, Role
 from vibe.core.utils.tokens import approx_token_count, truncate_middle_to_tokens
 from vibe.core.vibevm.models import ContextPage, PageState, RecallOutcome, VMSnapshot
-from vibe.core.vibevm.store import PageStore
+from vibe.core.vibevm.store import (
+    PageStore,
+    filename_match_terms,
+    page_matches_filename,
+)
 
 if TYPE_CHECKING:
     from vibe.core.config import VibeConfigSchema
@@ -38,6 +42,7 @@ class _VibeVMConfigLike(Protocol):
 _PER_MESSAGE_OVERHEAD = 8
 _SUMMARY_MAX_TOKENS = 30  # ~120 chars via truncate_middle_to_tokens's 4 bytes/token
 _STALE_TEXT_MAX_TOKENS = 4000
+_STALE_PROBE_LIMIT = 5  # cap staleness probing to the top N results, bounds file IO
 _DEFAULT_IMPORTANCE = 0.5
 _EXCERPT_MAX_TOKENS = 1500  # recall() windows content larger than this
 _FULL_MAX_TOKENS = 6000  # recall(full=True) still caps at this many tokens
@@ -301,6 +306,60 @@ def _windowed_content(
     return excerpt, note
 
 
+def _read_source_file(source_path: str) -> tuple[bytes, str] | None:
+    """Current bytes and sha256 hex digest of ``source_path``.
+
+    None if the file is missing or unreadable.
+    """
+    path = Path(source_path)
+    try:
+        if not path.exists():
+            return None
+        data = path.read_bytes()
+    except OSError:
+        return None
+    return data, hashlib.sha256(data).hexdigest()
+
+
+def _is_stale_and_filename_matched(
+    page: ContextPage, terms: list[str], cache: dict[str, tuple[bytes, str] | None]
+) -> bool:
+    """True if ``page`` matches ``terms`` by filename and its file changed on disk.
+
+    ``cache`` memoizes reads by path so candidates sharing a source file (e.g.
+    duplicate pages for the same file) only hit disk once.
+    """
+    if not page.source_path or not page.source_hash:
+        return False
+    if not page_matches_filename(page, terms):
+        return False
+    if page.source_path not in cache:
+        cache[page.source_path] = _read_source_file(page.source_path)
+    read = cache[page.source_path]
+    return read is not None and read[1] != page.source_hash
+
+
+def _promote_stale_filename_match(
+    results: list[ContextPage], query: str
+) -> list[ContextPage]:
+    """Move the highest-ranked stale, filename-matching page to the front.
+
+    Guards against the ranking bug where a large unrelated page (e.g. a log)
+    outranks the actual file the query is asking about: only a page whose
+    filename matches the query's own terms is eligible, so an unrelated stale
+    page never gets promoted. Displaced pages keep their relative order.
+    """
+    terms = filename_match_terms(query)
+    cache: dict[str, tuple[bytes, str] | None] = {}
+    for page in results[:_STALE_PROBE_LIMIT]:
+        if not _is_stale_and_filename_matched(page, terms, cache):
+            continue
+        if page.id == results[0].id:
+            return results
+        return [page, *(p for p in results if p.id != page.id)]
+    return results
+
+
 class VibeVM:
     """Per-session view-transform manager: pages large tool results out of the
     outgoing message array under budget pressure and restores them on demand.
@@ -355,6 +414,8 @@ class VibeVM:
         if not results:
             store.bump_stat("misses")
             return RecallOutcome(status="miss")
+        if page_id is None:
+            results = _promote_stale_filename_match(results, query)
 
         top, *rest = results
         was_cold = top.state == PageState.COLD
@@ -417,14 +478,10 @@ class VibeVM:
     ) -> tuple[ContextPage, str] | None:
         if not page.source_path or not page.source_hash:
             return None
-        path = Path(page.source_path)
-        try:
-            if not path.exists():
-                return None
-            current_bytes = path.read_bytes()
-        except OSError:
+        read = _read_source_file(page.source_path)
+        if read is None:
             return None
-        current_hash = hashlib.sha256(current_bytes).hexdigest()
+        current_bytes, current_hash = read
         if current_hash == page.source_hash:
             return None
 

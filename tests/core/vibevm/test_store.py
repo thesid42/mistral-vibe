@@ -235,3 +235,113 @@ def test_search_like_respects_limit(store: PageStore) -> None:
         )
 
     assert len(store.search("needle", limit=3)) == 3
+
+
+def _log_mentioning_terms() -> str:
+    """A large log whose lines repeatedly mention auth.py/refresh/check --
+    enough raw term frequency to outrank a small real auth.py page on bm25
+    and on LIKE hit-count alike, unless filename-aware ranking kicks in.
+    """
+    lines = [
+        f"INFO line {i:04d}: routine heartbeat, nothing unusual here, server ok"
+        for i in range(1500)
+    ]
+    for i in range(0, 1500, 3):
+        lines[i] = f"DEBUG auth.py:{i} refresh_session check exp iat cycle complete"
+    return "\n".join(lines)
+
+
+def _upsert_log_and_auth_pages(store: PageStore) -> None:
+    store.upsert_page(
+        _make_page(
+            page_id="P001",
+            tool_call_id="call-1",
+            content=_log_mentioning_terms(),
+            summary="server log excerpt (routine heartbeat records)",
+            source_path="/var/log/server.log",
+        )
+    )
+    store.upsert_page(
+        _make_page(
+            page_id="P002",
+            tool_call_id="call-2",
+            content="def refresh_session():\n    check_exp_iat()\n    return True\n",
+            summary="refresh_session helper in auth.py",
+            source_path="/repo/auth.py",
+        )
+    )
+
+
+def test_search_fts_prioritizes_filename_match_over_term_frequency(
+    store: PageStore,
+) -> None:
+    assert store.fts_enabled
+    _upsert_log_and_auth_pages(store)
+
+    results = store.search("auth.py refresh check")
+
+    assert results[0].id == "P002"
+
+
+def test_search_like_prioritizes_filename_match_over_term_frequency(
+    store: PageStore,
+) -> None:
+    store.fts_enabled = False
+    _upsert_log_and_auth_pages(store)
+
+    results = store.search("auth.py refresh check")
+
+    assert results[0].id == "P002"
+
+
+def test_search_short_filename_terms_leave_ranking_unchanged(store: PageStore) -> None:
+    store.fts_enabled = False
+    store.upsert_page(
+        _make_page(
+            page_id="P001", tool_call_id="call-1", content="ok ok ok", summary="s"
+        )
+    )
+    store.upsert_page(
+        _make_page(
+            page_id="P002",
+            tool_call_id="call-2",
+            content="ok",
+            summary="s",
+            source_path="/repo/ok.py",  # "ok" is only 2 chars: too short to boost
+        )
+    )
+
+    results = store.search("ok")
+
+    assert [p.id for p in results] == [
+        "P001",
+        "P002",
+    ]  # unchanged: pure hit-count order
+
+
+def test_search_like_respects_limit_after_filename_partition(store: PageStore) -> None:
+    store.fts_enabled = False
+    for i in range(3):
+        store.upsert_page(
+            _make_page(
+                page_id=f"P00{i}",
+                tool_call_id=f"call-{i}",
+                content="needle " * 10,
+                summary="s",
+            )
+        )
+    for i in range(3, 5):
+        store.upsert_page(
+            _make_page(
+                page_id=f"P00{i}",
+                tool_call_id=f"call-{i}",
+                content="needle",
+                summary="s",
+                source_path=f"/repo/needle{i}.py",
+            )
+        )
+
+    results = store.search("needle check", limit=2)
+
+    assert len(results) == 2
+    assert {p.id for p in results} == {"P003", "P004"}

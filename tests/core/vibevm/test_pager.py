@@ -726,3 +726,202 @@ def test_recall_already_hot_returns_excerpt_even_with_full_true(
     assert outcome.note == (
         "This page is already present in your context in full; excerpt shown."
     )
+
+
+def _noisy_log_content() -> str:
+    """Log-like content whose raw term frequency outranks a small auth.py
+    page on both bm25 and LIKE hit-count ranking, absent filename-aware
+    ranking and staleness-promotion.
+    """
+    lines = [
+        f"INFO line {i:04d}: routine heartbeat, nothing unusual here, server ok"
+        for i in range(1500)
+    ]
+    for i in range(0, 1500, 3):
+        lines[i] = f"DEBUG auth.py:{i} refresh_session check exp iat cycle complete"
+    return "\n".join(lines)
+
+
+def test_recall_stale_breadth_finds_auth_file_over_noisy_log(
+    config_dir: Path, tmp_path: Path
+) -> None:
+    """End-to-end repro of the live bug: a 42KB-ish log page outranks the
+    small auth.py page on term frequency, so the staleness check never used
+    to fire on the page the query is actually about.
+    """
+    target = tmp_path / "auth.py"
+    original_text = "def refresh_session():\n    return check_exp_iat()\n" * 5
+    target.write_text(original_text, encoding="utf-8")
+
+    cfg = _config(
+        min_page_tokens=1,
+        context_budget=1,
+        evict_target_ratio=0.5,
+        protect_recent_turns=0,
+    )
+    vm = VibeVM(session_id="stale-breadth-1", config_getter=lambda: cfg)
+    args = json.dumps({"file_path": str(target)})
+    messages = [
+        _user("go"),
+        _assistant_call("call-log", "bash"),
+        _tool_result("call-log", "bash", _noisy_log_content()),
+        _assistant_call("call-auth", "read_file", args),
+        _tool_result("call-auth", "read_file", original_text),
+    ]
+    vm.apply(messages)  # tiny budget: both pages evicted to COLD
+
+    by_tcid = {p.tool_call_id: p for p in vm.snapshot().pages}
+    assert by_tcid["call-log"].state == PageState.COLD
+    assert by_tcid["call-auth"].state == PageState.COLD
+
+    updated_text = "def refresh_session():\n    return REFRESH_CHECK_CHANGED()\n" * 5
+    target.write_text(updated_text, encoding="utf-8")
+
+    outcome = vm.recall("recall what auth.py looked like has the refresh check changed")
+
+    assert outcome.status == "stale_refreshed"
+    assert outcome.source_path == str(target)
+    assert outcome.content is not None
+    assert "REFRESH_CHECK_CHANGED" in outcome.content
+    assert "check_exp_iat" not in outcome.content
+
+
+def test_recall_promotes_stale_duplicate_over_fresher_ranked_duplicate(
+    config_dir: Path, tmp_path: Path
+) -> None:
+    """Two pages back the same file; the higher-ranked one is FRESH and the
+    lower-ranked one is STALE. Promotion must find the stale one (even though
+    it isn't results[0]) and refresh it.
+    """
+    target = tmp_path / "auth.py"
+    original_text = "def refresh_session():\n    return True  # baseline\n" * 5
+    target.write_text(original_text, encoding="utf-8")
+
+    cfg = _config(
+        min_page_tokens=1,
+        context_budget=1,
+        evict_target_ratio=0.5,
+        protect_recent_turns=0,
+    )
+    vm = VibeVM(session_id="stale-dup-1", config_getter=lambda: cfg)
+    args = json.dumps({"file_path": str(target)})
+    messages = [
+        _user("go"),
+        _assistant_call("call-old", "read_file", args),
+        _tool_result("call-old", "read_file", original_text),
+    ]
+    vm.apply(messages)  # registers call-old with the original file's hash
+
+    updated_text = (
+        "def refresh_session():\n    return True  # marker value active\n" * 5
+    )
+    target.write_text(updated_text, encoding="utf-8")
+
+    messages = [
+        *messages,
+        _assistant_call("call-new", "read_file", args),
+        _tool_result("call-new", "read_file", updated_text),
+    ]
+    vm.apply(messages)  # registers call-new with the current (fresh) hash
+
+    store = vm._ensure_store()
+    ranked = store.search("auth.py refresh marker")
+    assert [p.tool_call_id for p in ranked] == [
+        "call-new",
+        "call-old",
+    ]  # fresh outranks
+
+    outcome = vm.recall("auth.py refresh marker")
+
+    assert outcome.status == "stale_refreshed"
+    assert outcome.content is not None
+    assert "marker value active" in outcome.content
+
+
+def test_recall_never_promotes_unrelated_stale_page_by_content_alone(
+    config_dir: Path, tmp_path: Path
+) -> None:
+    """Hijack guard: an unrelated file page that happens to be stale, and even
+    happens to match the query by content, must never be promoted just for
+    being stale -- only a filename match makes it eligible.
+    """
+    helper_path = tmp_path / "helper.py"
+    helper_original = "def helper():\n    return None\n# errno check stub\n"
+    helper_path.write_text(helper_original, encoding="utf-8")
+
+    cfg = _config(
+        min_page_tokens=1,
+        context_budget=1,
+        evict_target_ratio=0.5,
+        protect_recent_turns=0,
+    )
+    vm = VibeVM(session_id="stale-hijack-1", config_getter=lambda: cfg)
+    args = json.dumps({"file_path": str(helper_path)})
+    distinctive = {
+        i: f"database connection errno 111 refused (attempt {i})"
+        for i in range(0, 250, 50)
+    }
+    log_content = _log_content(300, distinctive)
+    messages = [
+        _user("go"),
+        _assistant_call("call-log", "bash"),
+        _tool_result("call-log", "bash", log_content),
+        _assistant_call("call-helper", "read_file", args),
+        _tool_result("call-helper", "read_file", helper_original),
+    ]
+    vm.apply(messages)  # tiny budget: both pages evicted to COLD
+
+    helper_path.write_text(
+        "def helper():\n    return 42\n# errno check stub\n", encoding="utf-8"
+    )  # helper.py is now stale, but unrelated to the query below
+
+    outcome = vm.recall("database errno")
+
+    assert outcome.status in ("ok", "already_hot")
+    assert outcome.source_path != str(helper_path)
+    assert outcome.content is not None
+    assert "errno 111" in outcome.content
+
+
+def test_recall_explicit_page_id_bypasses_stale_promotion(
+    config_dir: Path, tmp_path: Path
+) -> None:
+    """The page_id path is unchanged: even with a stale, filename-matching
+    page ranked elsewhere, an explicit page_id request returns exactly that
+    page, untouched by promotion.
+    """
+    target = tmp_path / "auth.py"
+    original_text = "def refresh_session():\n    return True\n" * 5
+    target.write_text(original_text, encoding="utf-8")
+
+    cfg = _config(
+        min_page_tokens=1,
+        context_budget=1,
+        evict_target_ratio=0.5,
+        protect_recent_turns=0,
+    )
+    vm = VibeVM(session_id="stale-explicit-1", config_getter=lambda: cfg)
+    args = json.dumps({"file_path": str(target)})
+    log_content = _log_content(300, {50: "auth.py refresh check unrelated log line"})
+    messages = [
+        _user("go"),
+        _assistant_call("call-log", "bash"),
+        _tool_result("call-log", "bash", log_content),
+        _assistant_call("call-auth", "read_file", args),
+        _tool_result("call-auth", "read_file", original_text),
+    ]
+    vm.apply(messages)
+    log_page_id = next(
+        p.id for p in vm.snapshot().pages if p.tool_call_id == "call-log"
+    )
+
+    target.write_text(
+        "def refresh_session():\n    return CHANGED\n" * 5, encoding="utf-8"
+    )  # auth.py goes stale, but was never asked for by page_id
+
+    outcome = vm.recall("auth.py refresh check", page_id=log_page_id)
+
+    assert outcome.status in ("ok", "already_hot")
+    assert outcome.page_id == log_page_id
+    assert outcome.content is not None
+    assert "unrelated log line" in outcome.content

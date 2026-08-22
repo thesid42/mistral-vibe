@@ -1,3 +1,7 @@
+# Keep every model call lean on a rate-limited key: drop tool schemas the
+# demo never uses (also keeps the model from wandering off-script).
+disabled_tools = ["web_fetch", "web_search", "task"]
+
 [vibevm]
 enabled = true
 context_budget = 10000

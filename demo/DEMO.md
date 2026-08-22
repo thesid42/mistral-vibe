@@ -18,7 +18,15 @@ VIBE_VIBEVM__ENABLED=true VIBE_VIBEVM__CONTEXT_BUDGET=10000 VIBE_VIBEVM__MIN_PAG
 ```
 
 (Equivalent `.vibe/config.toml` is in the fixture; env vars are the reliable path
-because project config requires the folder to be trusted.)
+because project config requires the folder to be trusted. Do **trust the folder**
+when prompted anyway: the fixture config also disables `web_fetch`/`web_search`/
+`task`, which shrinks every model call and keeps the model on-script — that part
+only applies from the trusted project config.)
+
+**This demo is validated on the current (modest) API key**: the full three-beat
+run fits its rate limits when beats are spaced by ~a minute of narration. If a
+response ever pauses mid-beat, keep talking — Vibe retries rate-limited calls
+automatically and recovers on its own; do not restart it.
 
 ## Beat 1 — pressure and eviction (~90s)
 

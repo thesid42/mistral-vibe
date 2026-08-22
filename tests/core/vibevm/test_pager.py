@@ -925,3 +925,141 @@ def test_recall_explicit_page_id_bypasses_stale_promotion(
     assert outcome.page_id == log_page_id
     assert outcome.content is not None
     assert "unrelated log line" in outcome.content
+
+
+def test_apply_invalidates_hot_page_when_source_file_changes(
+    config_dir: Path, tmp_path: Path
+) -> None:
+    target = tmp_path / "auth.py"
+    original_text = "def refresh_session():\n    return True\n" * 20
+    target.write_text(original_text, encoding="utf-8")
+
+    cfg = _config(min_page_tokens=1)  # huge default budget: page stays HOT
+    vm = VibeVM(session_id="coherence-1", config_getter=lambda: cfg)
+    args = json.dumps({"file_path": str(target)})
+    messages = [
+        _user("go"),
+        _assistant_call("call-1", "read_file", args),
+        _tool_result("call-1", "read_file", original_text),
+    ]
+    out = vm.apply(messages)
+    page = next(p for p in vm.snapshot().pages if p.tool_call_id == "call-1")
+    assert page.state == PageState.HOT
+    tool_msg = next(m for m in out if m.tool_call_id == "call-1")
+    assert tool_msg.content == original_text  # still HOT: unstubbed
+
+    target.write_text(
+        "def refresh_session():\n    return False\n" * 20, encoding="utf-8"
+    )
+
+    out2 = vm.apply(messages)  # same messages: the coherence pass re-probes disk
+
+    page_after = next(p for p in vm.snapshot().pages if p.tool_call_id == "call-1")
+    assert page_after.state == PageState.COLD
+    tool_msg_after = next(m for m in out2 if m.tool_call_id == "call-1")
+    assert tool_msg_after.content.startswith(STUB_PREFIX)
+
+    stats = vm.snapshot().stats
+    assert stats.evictions == 1
+    assert stats.tokens_evicted == page.token_count
+
+
+def test_apply_coherence_pass_is_read_only_when_file_unchanged(
+    config_dir: Path, tmp_path: Path
+) -> None:
+    target = tmp_path / "auth.py"
+    original_text = "def refresh_session():\n    return True\n" * 20
+    target.write_text(original_text, encoding="utf-8")
+
+    cfg = _config(min_page_tokens=1)  # huge default budget: page stays HOT
+    vm = VibeVM(session_id="coherence-2", config_getter=lambda: cfg)
+    args = json.dumps({"file_path": str(target)})
+    messages = [
+        _user("go"),
+        _assistant_call("call-1", "read_file", args),
+        _tool_result("call-1", "read_file", original_text),
+    ]
+    first = vm.apply(messages)
+
+    store = vm._ensure_store()
+    upsert = MagicMock(wraps=store.upsert_page)
+    set_state = MagicMock(wraps=store.set_state)
+    bump = MagicMock(wraps=store.bump_stat)
+    set_stat = MagicMock(wraps=store.set_stat)
+    store.upsert_page = upsert  # type: ignore[method-assign]
+    store.set_state = set_state  # type: ignore[method-assign]
+    store.bump_stat = bump  # type: ignore[method-assign]
+    store.set_stat = set_stat  # type: ignore[method-assign]
+
+    second = vm.apply(messages)  # file untouched: coherence pass must not write
+
+    upsert.assert_not_called()
+    set_state.assert_not_called()
+    bump.assert_not_called()
+    set_stat.assert_not_called()
+    assert [m.content for m in second] == [m.content for m in first]
+
+    page = next(p for p in vm.snapshot().pages if p.tool_call_id == "call-1")
+    assert page.state == PageState.HOT
+
+
+def test_apply_then_recall_shows_current_content_after_coherence_invalidation(
+    config_dir: Path, tmp_path: Path
+) -> None:
+    target = tmp_path / "auth.py"
+    original_text = "def refresh_session():\n    return check_exp_iat()\n" * 20
+    target.write_text(original_text, encoding="utf-8")
+
+    cfg = _config(min_page_tokens=1)  # huge default budget: page stays HOT
+    vm = VibeVM(session_id="coherence-3", config_getter=lambda: cfg)
+    args = json.dumps({"file_path": str(target)})
+    messages = [
+        _user("go"),
+        _assistant_call("call-1", "read_file", args),
+        _tool_result("call-1", "read_file", original_text),
+    ]
+    vm.apply(messages)
+    page = next(p for p in vm.snapshot().pages if p.tool_call_id == "call-1")
+    assert page.state == PageState.HOT
+
+    updated_text = "def refresh_session():\n    return REFRESH_CHECK_CHANGED()\n" * 20
+    target.write_text(updated_text, encoding="utf-8")
+
+    vm.apply(messages)  # coherence pass auto-stubs the now-rotten HOT page
+
+    page_after = next(p for p in vm.snapshot().pages if p.tool_call_id == "call-1")
+    assert page_after.state == PageState.COLD
+
+    outcome = vm.recall("what did auth.py look like refresh check")
+
+    assert outcome.status == "stale_refreshed"
+    assert outcome.content is not None
+    assert "REFRESH_CHECK_CHANGED" in outcome.content
+    assert "check_exp_iat" not in outcome.content
+
+
+def test_apply_leaves_hot_page_alone_when_source_file_deleted(
+    config_dir: Path, tmp_path: Path
+) -> None:
+    target = tmp_path / "auth.py"
+    original_text = "def refresh_session():\n    return True\n" * 20
+    target.write_text(original_text, encoding="utf-8")
+
+    cfg = _config(min_page_tokens=1)  # huge default budget: page stays HOT
+    vm = VibeVM(session_id="coherence-4", config_getter=lambda: cfg)
+    args = json.dumps({"file_path": str(target)})
+    messages = [
+        _user("go"),
+        _assistant_call("call-1", "read_file", args),
+        _tool_result("call-1", "read_file", original_text),
+    ]
+    vm.apply(messages)
+
+    target.unlink()
+
+    out = vm.apply(messages)  # must not raise despite the missing file
+
+    page = next(p for p in vm.snapshot().pages if p.tool_call_id == "call-1")
+    assert page.state == PageState.HOT
+    tool_msg = next(m for m in out if m.tool_call_id == "call-1")
+    assert tool_msg.content == original_text  # unstubbed: still HOT

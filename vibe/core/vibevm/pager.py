@@ -43,6 +43,7 @@ _PER_MESSAGE_OVERHEAD = 8
 _SUMMARY_MAX_TOKENS = 30  # ~120 chars via truncate_middle_to_tokens's 4 bytes/token
 _STALE_TEXT_MAX_TOKENS = 4000
 _STALE_PROBE_LIMIT = 5  # cap staleness probing to the top N results, bounds file IO
+_COHERENCE_PROBE_LIMIT = 8  # cap coherence probing per apply(), bounds file IO
 _DEFAULT_IMPORTANCE = 0.5
 _EXCERPT_MAX_TOKENS = 1500  # recall() windows content larger than this
 _FULL_MAX_TOKENS = 6000  # recall(full=True) still caps at this many tokens
@@ -360,6 +361,40 @@ def _promote_stale_filename_match(
     return results
 
 
+def _invalidate_changed_hot_pages(store: PageStore, pages: list[ContextPage]) -> None:
+    """Flip HOT file-backed pages COLD when their source file changed on disk.
+
+    A HOT page is replayed verbatim into the view on every apply() -- unlike
+    a COLD page, it's never looked up through recall(), so nothing else ever
+    re-checks it against disk. Left alone, the model keeps reading a stale
+    snapshot forever. Probes the _COHERENCE_PROBE_LIMIT most recently created
+    file-backed HOT pages per call; a missing/unreadable file leaves the page
+    HOT (legitimate memory of a since-deleted file), and an unchanged file
+    causes no store writes at all.
+    """
+    candidate_indices = [
+        i
+        for i, p in enumerate(pages)
+        if p.state == PageState.HOT and p.source_path and p.source_hash
+    ]
+    candidate_indices.sort(key=lambda i: pages[i].created_seq, reverse=True)
+    cache: dict[str, tuple[bytes, str] | None] = {}
+    for i in candidate_indices[:_COHERENCE_PROBE_LIMIT]:
+        page = pages[i]
+        source_path = page.source_path
+        if source_path is None:
+            continue
+        if source_path not in cache:
+            cache[source_path] = _read_source_file(source_path)
+        read = cache[source_path]
+        if read is None or read[1] == page.source_hash:
+            continue
+        store.set_state(page.id, PageState.COLD)
+        store.bump_stat("evictions")
+        store.bump_stat("tokens_evicted", by=page.token_count)
+        pages[i] = page.model_copy(update={"state": PageState.COLD})
+
+
 class VibeVM:
     """Per-session view-transform manager: pages large tool results out of the
     outgoing message array under budget pressure and restores them on demand.
@@ -401,7 +436,9 @@ class VibeVM:
             self._last_written_budget = cfg.context_budget
         self._register_new_pages(store, messages, cfg.min_page_tokens)
 
-        pages_by_tcid = {p.tool_call_id: p for p in store.all_pages()}
+        pages = store.all_pages()
+        _invalidate_changed_hot_pages(store, pages)
+        pages_by_tcid = {p.tool_call_id: p for p in pages}
         out, index_by_tcid = self._substitute(messages, pages_by_tcid)
         self._evict_to_budget(store, messages, out, index_by_tcid, pages_by_tcid, cfg)
         return out

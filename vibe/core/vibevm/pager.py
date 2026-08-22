@@ -67,7 +67,9 @@ def make_stub(page: ContextPage) -> str:
         f"tokens~{page.token_count}{source_part}\n"
         f"summary: {page.summary}\n"
         f'Full content is preserved. Call recall_context(query=..., page_id="{page.id}") '
-        "to restore it."
+        "to restore it.\n"
+        "Do not re-read, grep, or re-run the original tool for this content — "
+        "use recall_context instead."
     )
 
 

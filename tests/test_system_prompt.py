@@ -301,6 +301,38 @@ def test_headless_section_absent_by_default(
     assert "Headless Mode" not in prompt
 
 
+def test_vibevm_section_included_when_enabled(
+    build_config: ConfigBuilder, load_orchestrator: OrchestratorLoader[VibeConfigSchema]
+) -> None:
+    from vibe.core.config import VibeVMConfig
+
+    config = build_config(
+        include_model_info=False,
+        include_commit_signature=False,
+        vibevm=VibeVMConfig(enabled=True),
+    )
+    skill_manager = SkillManager(lambda: config)
+    agent_manager = AgentManager(load_orchestrator(config))
+
+    prompt = get_universal_system_prompt(config, skill_manager, agent_manager)
+
+    assert "# VibeVM (paged tool context)" in prompt
+    assert "prefer `recall_context` first" in prompt
+
+
+def test_vibevm_section_absent_when_disabled(
+    build_config: ConfigBuilder, load_orchestrator: OrchestratorLoader[VibeConfigSchema]
+) -> None:
+    config = build_config(include_model_info=False, include_commit_signature=False)
+    assert config.vibevm.enabled is False
+    skill_manager = SkillManager(lambda: config)
+    agent_manager = AgentManager(load_orchestrator(config))
+
+    prompt = get_universal_system_prompt(config, skill_manager, agent_manager)
+
+    assert "VibeVM (paged tool context)" not in prompt
+
+
 def test_current_date_placeholder_substituted_in_prompt(
     build_config: ConfigBuilder, load_orchestrator: OrchestratorLoader[VibeConfigSchema]
 ) -> None:

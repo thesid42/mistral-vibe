@@ -335,6 +335,18 @@ def _get_headless_section() -> str:
     )
 
 
+def _get_vibevm_section() -> str:
+    return (
+        "# VibeVM (paged tool context)\n\n"
+        "Large tool results may appear as `[vibevm:paged-out]` stubs. The full "
+        "content is still in the page store.\n"
+        "When you need detail from a stubbed page, call `recall_context` "
+        "(by `page_id` from the stub or a keyword `query`).\n"
+        "Do not re-read, grep, or re-run the original tool for content that a "
+        "stub already covers — prefer `recall_context` first."
+    )
+
+
 def _get_tool_aware_os_system_prompt(tool_manager: ToolManager | None) -> str:
     if tool_manager is None:
         return _get_os_system_prompt()
@@ -366,6 +378,9 @@ def get_universal_system_prompt(
 
     if headless:
         sections.append(_get_headless_section())
+
+    if config.vibevm.enabled:
+        sections.append(_get_vibevm_section())
 
     if config.include_commit_signature:
         sections.append(_add_commit_signature())

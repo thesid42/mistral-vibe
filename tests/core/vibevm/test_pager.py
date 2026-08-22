@@ -8,7 +8,8 @@ from unittest.mock import MagicMock
 from pydantic import BaseModel
 
 from vibe.core.types import FunctionCall, LLMMessage, Role, ToolCall
-from vibe.core.vibevm.pager import STUB_PREFIX, VibeVM, _estimate_tokens
+from vibe.core.vibevm.models import ContextPage, PageState
+from vibe.core.vibevm.pager import STUB_PREFIX, VibeVM, _estimate_tokens, make_stub
 
 
 class _FakeVibeVMConfig(BaseModel):
@@ -76,6 +77,28 @@ def _log_content(total_lines: int, distinctive: dict[int, str]) -> str:
     for index, text in distinctive.items():
         body[index] = text
     return "\n".join(body)
+
+
+def test_make_stub_directs_model_to_recall_not_reread() -> None:
+    page = ContextPage(
+        id="P042",
+        session_id="s",
+        tool_call_id="tc",
+        page_type="read_file",
+        content="x" * 100,
+        summary="server.log excerpt",
+        source_path="/tmp/server.log",
+        token_count=100,
+        created_seq=1,
+        created_at="2026-01-01T00:00:00+00:00",
+        last_accessed="2026-01-01T00:00:00+00:00",
+        state=PageState.COLD,
+    )
+    stub = make_stub(page)
+    assert stub.startswith(STUB_PREFIX)
+    assert 'page_id="P042"' in stub
+    assert "Do not re-read, grep, or re-run" in stub
+    assert "use recall_context instead" in stub
 
 
 def test_disabled_returns_passthrough_identical_list() -> None:

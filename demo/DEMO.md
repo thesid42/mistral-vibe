@@ -53,7 +53,8 @@ Then:
 > quote me the exact log line."
 
 The line (`errno=104 connection reset by peer`, buried at 09:xx in a COLD page)
-is gone from context. Watch the model call **`recall_context`** and return the
+is gone from context. The model should call **`recall_context`** on its own
+(system prompt + stub text prefer recall over re-read/grep) and return the
 line **verbatim**. `/vm` again: page fault counted. Talking point: *"compaction
 would have given you 'there were some database errors'; VibeVM gives you the
 evidence back, byte for byte."*
@@ -65,9 +66,10 @@ Fix the bug live (or let Vibe fix it): in `auth.py`, change the buggy check in
 
 > **Prompt:** "Recall what auth.py looked like — has the refresh check changed?"
 
-`recall_context` detects the sha256 mismatch, reports **stale_refreshed** with
-old/new hashes, and returns the *current* file — no rotten memory. Close on
-`/vm` totals: evictions, faults, tokens evicted.
+`recall_context` should run without you forbidding `read_file`; it detects the
+sha256 mismatch, reports **stale_refreshed** with old/new hashes, and returns
+the *current* file — no rotten memory. Close on `/vm` totals: evictions,
+faults, tokens evicted.
 
 > **Closing line:** "Programs stopped needing to fit in RAM decades ago.
 > Agents shouldn't have to fit in a context window either."

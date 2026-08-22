@@ -66,17 +66,27 @@ old/new hashes, and returns the *current* file — no rotten memory. Close on
 
 ## Rehearsal notes (learned from live runs)
 
-- **API rate limits are the #1 stage risk.** Every continued turn resends the
-  full history (~35K tokens by beat 3); a low-tier key hits HTTP 429 and each
-  model call stalls minutes in retry-backoff (looks like a hang — check
-  `~/.vibe/logs/vibe.log` for `rate_limited`). Use a key with generous
-  tokens-per-minute headroom on demo day.
-- Beats 1 and 2 were validated end-to-end against the live API: the model
-  diagnoses the bug, and after eviction quotes the buried
-  `errno=104 connection reset by peer` log line **verbatim** via a single
-  `recall_context` page fault.
+- **All three beats validated end-to-end against the live API** after the
+  efficiency work (windowed page faults + age-based eviction + full=true cap):
+  the whole three-beat run costs ~180K prompt tokens — less than beat 1 alone
+  cost before (~194K). Beat 1 is ~98K over 5 model calls (~11-12K per call on
+  the 10K budget); beat 2 quotes the buried `errno=104` line **verbatim** via
+  one excerpted page fault; beat 3 returns `stale_refreshed` with the current
+  file after a live edit.
+- **API rate limits remain the top stage risk.** Back-to-back beats can trip
+  HTTP 429 and each model call then stalls in retry-backoff (looks like a
+  hang — check `~/.vibe/logs/vibe.log` for `rate_limited`). Narrating ~a
+  minute between beats is usually enough; a key with real tokens-per-minute
+  headroom removes the risk entirely.
+- **Scripted (non-TTY) runs must close stdin**: `vibe` blocks forever in
+  `get_prompt_from_stdin` if the caller holds stdin open — append
+  `</dev/null` to any `vibe -p ...` in scripts. The interactive stage demo is
+  unaffected (stdin is a TTY). Upstream quirk, not a VibeVM behavior.
 - Kill stray `vibe`/`python` processes between rehearsals — an orphaned
-  session holds its lease and quietly burns your rate limit.
+  session quietly burns your rate limit.
+- In beat 3, if the model's first recall query is vague it may fetch the log
+  page first; saying "the page for auth.py — the page id is in its
+  [vibevm:paged-out] stub" gets the one-call version.
 
 ## Reset between rehearsals
 

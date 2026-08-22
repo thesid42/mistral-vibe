@@ -268,6 +268,7 @@ ignore_decorators = ["@*"]
 
 [tool.pytest.ini_options]
 addopts = "-vvvv -q -n auto --durations=10 --import-mode=importlib --maxschedchunk=1"
+norecursedirs = ["demo"]
 timeout = 10
 markers = [
     "unified_supported: backend contract behavior implemented by the Unified Harness",

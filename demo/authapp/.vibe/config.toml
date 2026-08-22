@@ -1,0 +1,4 @@
+[vibevm]
+enabled = true
+context_budget = 10000
+min_page_tokens = 150

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from typing import Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from vibe.core.tools.base import (
     BaseTool,
@@ -17,7 +18,11 @@ from vibe.core.vibevm import registry as vibevm_registry
 
 class RecallContextArgs(BaseModel):
     query: str = Field(
-        description="What to look for in paged-out context (keywords, file names, error text)"
+        default="",
+        description=(
+            "What to look for in paged-out context (keywords, file names, error text). "
+            "Optional when page_id is set."
+        ),
     )
     page_id: str | None = Field(
         default=None,
@@ -27,6 +32,12 @@ class RecallContextArgs(BaseModel):
         default=False,
         description="Return the complete page instead of focused excerpts",
     )
+
+    @model_validator(mode="after")
+    def _require_query_or_page_id(self) -> Self:
+        if self.page_id is None and not self.query.strip():
+            raise ValueError("Provide query and/or page_id")
+        return self
 
 
 class RecallContextResult(BaseModel):

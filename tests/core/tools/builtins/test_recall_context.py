@@ -347,3 +347,41 @@ async def test_recall_already_hot_page_returns_excerpt_even_with_full_true(
     assert result.note == (
         "This page is already present in your context in full; excerpt shown."
     )
+
+
+def test_args_accept_page_id_without_query() -> None:
+    args = RecallContextArgs.model_validate({"page_id": "P001", "full": True})
+    assert args.query == ""
+    assert args.page_id == "P001"
+    assert args.full is True
+
+
+def test_args_reject_missing_query_and_page_id() -> None:
+    with pytest.raises(Exception, match="query and/or page_id"):
+        RecallContextArgs.model_validate({"full": True})
+
+
+@pytest.mark.asyncio
+async def test_recall_by_page_id_alone(config_dir: Path, session_id: str) -> None:
+    distinctive = "ERROR 500: connection reset by peer at auth.py:88"
+    content = _log_content(80, {40: distinctive})
+    cfg = _config(context_budget=1, evict_target_ratio=0.5)
+    vm = VibeVM(session_id=session_id, config_getter=lambda: cfg)
+    vm.apply([
+        _user("go"),
+        _assistant_call("call-1", "bash"),
+        _tool_result("call-1", "bash", content),
+    ])
+    vibevm_registry.register(session_id, vm)
+    page_id = vm.snapshot().pages[0].id
+
+    tool = _make_tool()
+    ctx = InvokeContext(tool_call_id="t1", session_id=session_id)
+    result = await collect_result(
+        tool.run(RecallContextArgs(page_id=page_id, full=True), ctx)
+    )
+
+    assert result.status == "ok"
+    assert result.page_id == page_id
+    assert result.content is not None
+    assert distinctive in result.content

@@ -318,6 +318,7 @@ def test_vibevm_section_included_when_enabled(
 
     assert "# VibeVM (paged tool context)" in prompt
     assert "prefer `recall_context` first" in prompt
+    assert "[vibevm:page-table]" in prompt
 
 
 def test_vibevm_section_absent_when_disabled(

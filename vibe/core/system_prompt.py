@@ -343,7 +343,10 @@ def _get_vibevm_section() -> str:
         "When you need detail from a stubbed page, call `recall_context` "
         "(by `page_id` from the stub or a keyword `query`).\n"
         "Do not re-read, grep, or re-run the original tool for content that a "
-        "stub already covers — prefer `recall_context` first."
+        "stub already covers — prefer `recall_context` first.\n"
+        "After a compaction, a `[vibevm:page-table]` block lists pages that "
+        "remain recoverable — prefer `recall_context` on those pages over "
+        "re-reading files or re-running tools."
     )
 
 

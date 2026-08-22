@@ -1063,3 +1063,104 @@ def test_apply_leaves_hot_page_alone_when_source_file_deleted(
     assert page.state == PageState.HOT
     tool_msg = next(m for m in out if m.tool_call_id == "call-1")
     assert tool_msg.content == original_text  # unstubbed: still HOT
+
+
+def _envelope(content: str = "Summary of the compacted conversation.") -> LLMMessage:
+    return LLMMessage(
+        role=Role.user, injected=True, context_boundary="compaction", content=content
+    )
+
+
+def test_no_page_table_without_compaction_boundary(config_dir: Path) -> None:
+    vm = VibeVM(session_id="pt-none", config_getter=lambda: _config())
+    history = [
+        _user("investigate"),
+        _assistant_call("pt1", "bash"),
+        _tool_result("pt1", "bash", "z" * 400),
+    ]
+    vm.apply(history)
+
+    out = vm.apply([_user("a fresh question")])
+
+    assert not any("[vibevm:page-table]" in (m.content or "") for m in out)
+
+
+def test_page_table_lists_orphans_on_compaction_envelope(config_dir: Path) -> None:
+    vm = VibeVM(session_id="pt-orphans", config_getter=lambda: _config())
+    vm.apply([
+        _user("investigate"),
+        _assistant_call("pt-old", "bash"),
+        _tool_result("pt-old", "bash", "old evidence " * 40),
+    ])
+
+    envelope = _envelope()
+    compacted_view = [
+        envelope,
+        _user("continue"),
+        _assistant_call("pt-new", "bash"),
+        _tool_result("pt-new", "bash", "fresh output " * 40),
+    ]
+    out = vm.apply(compacted_view)
+
+    table = next(m.content for m in out if "[vibevm:page-table]" in (m.content or ""))
+    old_page = next(p for p in vm.snapshot().pages if p.tool_call_id == "pt-old")
+    new_page = next(p for p in vm.snapshot().pages if p.tool_call_id == "pt-new")
+    assert f"{old_page.id} bash" in table
+    assert new_page.id not in table  # visible in view -> not an orphan
+    assert "recall_context" in table
+    assert (
+        envelope.content == "Summary of the compacted conversation."
+    )  # history untouched
+    assert out[0].content.startswith("Summary of the compacted conversation.")
+
+
+def test_page_table_dedupes_snapshots_of_same_source(
+    config_dir: Path, tmp_path: Path
+) -> None:
+    target = tmp_path / "dup.py"
+    target.write_text("value = 1\n" * 40, encoding="utf-8")
+    args = json.dumps({"file_path": str(target)})
+    vm = VibeVM(session_id="pt-dedupe", config_getter=lambda: _config())
+    vm.apply([
+        _user("investigate"),
+        _assistant_call("pt-a", "read_file", args),
+        _tool_result("pt-a", "read_file", "value = 1\n" * 40),
+        _assistant_call("pt-b", "read_file", args),
+        _tool_result("pt-b", "read_file", "value = 1\n" * 40),
+    ])
+
+    out = vm.apply([_envelope(), _user("continue")])
+
+    table = next(m.content for m in out if "[vibevm:page-table]" in (m.content or ""))
+    assert table.count("source=dup.py") == 1
+    assert "(x2 snapshots)" in table
+
+
+def test_page_table_caps_entries_and_reports_remainder(config_dir: Path) -> None:
+    vm = VibeVM(session_id="pt-caps", config_getter=lambda: _config())
+    history: list[LLMMessage] = [_user("investigate")]
+    for i in range(25):
+        history.append(_assistant_call(f"pt-{i}", "bash"))
+        history.append(_tool_result(f"pt-{i}", "bash", f"c{i}\n" + "filler " * 50))
+    vm.apply(history)
+
+    out = vm.apply([_envelope(), _user("continue")])
+
+    table = next(m.content for m in out if "[vibevm:page-table]" in (m.content or ""))
+    listed = [ln for ln in table.splitlines() if ln.startswith("P")]
+    assert len(listed) == 20
+    assert "...and 5 more" in table
+
+
+def test_page_table_tokens_count_toward_eviction_estimate(config_dir: Path) -> None:
+    vm = VibeVM(session_id="pt-estimate", config_getter=lambda: _config())
+    vm.apply([
+        _user("investigate"),
+        _assistant_call("pt-est", "bash"),
+        _tool_result("pt-est", "bash", "evidence " * 60),
+    ])
+
+    compacted_view = [_envelope(), _user("continue")]
+    out = vm.apply(compacted_view)
+
+    assert _estimate_tokens(out) > _estimate_tokens(compacted_view)

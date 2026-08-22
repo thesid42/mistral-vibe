@@ -44,6 +44,9 @@ _SUMMARY_MAX_TOKENS = 30  # ~120 chars via truncate_middle_to_tokens's 4 bytes/t
 _STALE_TEXT_MAX_TOKENS = 4000
 _STALE_PROBE_LIMIT = 5  # cap staleness probing to the top N results, bounds file IO
 _COHERENCE_PROBE_LIMIT = 8  # cap coherence probing per apply(), bounds file IO
+_PAGE_TABLE_PREFIX = "[vibevm:page-table]"
+_PAGE_TABLE_MAX_ENTRIES = 20
+_PAGE_TABLE_MAX_TOKENS = 600
 _DEFAULT_IMPORTANCE = 0.5
 _EXCERPT_MAX_TOKENS = 1500  # recall() windows content larger than this
 _FULL_MAX_TOKENS = 6000  # recall(full=True) still caps at this many tokens
@@ -395,6 +398,79 @@ def _invalidate_changed_hot_pages(store: PageStore, pages: list[ContextPage]) ->
         pages[i] = page.model_copy(update={"state": PageState.COLD})
 
 
+def _page_table_line(page: ContextPage, snapshots: int) -> str:
+    source = f" source={Path(page.source_path).name}" if page.source_path else ""
+    suffix = f" (x{snapshots} snapshots)" if snapshots > 1 else ""
+    return (
+        f"{page.id} {page.page_type} ~{_format_k_tokens(page.token_count)}"
+        f"{source} — {page.summary}{suffix}"
+    )
+
+
+def _inject_page_table(out: list[LLMMessage], pages: list[ContextPage]) -> None:
+    """Append a catalog of orphaned pages to the newest compaction envelope.
+
+    Compaction cuts pre-boundary messages from the view — including the
+    ``[vibevm:paged-out]`` stubs — so the model loses its map of what the page
+    store can restore and falls back to re-reading files. This re-surfaces
+    that map as a few-hundred-token index on the envelope itself, in the view
+    only; history is never touched.
+    """
+    boundary_i = next(
+        (
+            i
+            for i in range(len(out) - 1, -1, -1)
+            if out[i].context_boundary == "compaction"
+        ),
+        None,
+    )
+    if boundary_i is None:
+        return
+    visible = {m.tool_call_id for m in out if m.role == Role.tool and m.tool_call_id}
+    orphans = sorted(
+        (p for p in pages if p.tool_call_id not in visible),
+        key=lambda p: p.created_seq,
+        reverse=True,
+    )
+    if not orphans:
+        return
+
+    snapshot_counts: dict[str, int] = {}
+    deduped: list[ContextPage] = []
+    for page in orphans:
+        if page.source_path:
+            if page.source_path in snapshot_counts:
+                snapshot_counts[page.source_path] += 1
+                continue
+            snapshot_counts[page.source_path] = 1
+        deduped.append(page)
+
+    lines = [
+        f"{_PAGE_TABLE_PREFIX} These pages from before the compaction are "
+        "preserved in the VibeVM store and are NOT shown above. Restore any "
+        'with recall_context(page_id="...") or a keyword query:'
+    ]
+    shown = 0
+    for page in deduped[:_PAGE_TABLE_MAX_ENTRIES]:
+        snapshots = snapshot_counts.get(page.source_path or "", 1)
+        line = _page_table_line(page, snapshots)
+        if approx_token_count("\n".join([*lines, line])) > _PAGE_TABLE_MAX_TOKENS:
+            break
+        lines.append(line)
+        shown += 1
+    if shown < len(deduped):
+        lines.append(
+            f"...and {len(deduped) - shown} more — search with "
+            "recall_context(query=...)."
+        )
+
+    envelope = out[boundary_i]
+    block = "\n".join(lines)
+    out[boundary_i] = envelope.model_copy(
+        update={"content": f"{envelope.content or ''}\n\n{block}"}
+    )
+
+
 class VibeVM:
     """Per-session view-transform manager: pages large tool results out of the
     outgoing message array under budget pressure and restores them on demand.
@@ -440,6 +516,7 @@ class VibeVM:
         _invalidate_changed_hot_pages(store, pages)
         pages_by_tcid = {p.tool_call_id: p for p in pages}
         out, index_by_tcid = self._substitute(messages, pages_by_tcid)
+        _inject_page_table(out, pages)
         self._evict_to_budget(store, messages, out, index_by_tcid, pages_by_tcid, cfg)
         return out
 

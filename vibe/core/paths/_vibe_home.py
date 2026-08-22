@@ -20,5 +20,6 @@ EXPERIMENT_EVAL_CACHE_FILE = GlobalPath(
 )
 HISTORY_FILE = GlobalPath(lambda: VIBE_HOME.path / "vibehistory")
 PLANS_DIR = GlobalPath(lambda: VIBE_HOME.path / "plans")
+VM_DIR = GlobalPath(lambda: VIBE_HOME.path / "vm")
 
 DEFAULT_TOOL_DIR = GlobalPath(lambda: VIBE_ROOT / "core" / "tools" / "builtins")

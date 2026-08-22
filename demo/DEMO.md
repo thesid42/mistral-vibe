@@ -59,6 +59,20 @@ old/new hashes, and returns the *current* file — no rotten memory. Close on
 > **Closing line:** "Programs stopped needing to fit in RAM decades ago.
 > Agents shouldn't have to fit in a context window either."
 
+## Rehearsal notes (learned from live runs)
+
+- **API rate limits are the #1 stage risk.** Every continued turn resends the
+  full history (~35K tokens by beat 3); a low-tier key hits HTTP 429 and each
+  model call stalls minutes in retry-backoff (looks like a hang — check
+  `~/.vibe/logs/vibe.log` for `rate_limited`). Use a key with generous
+  tokens-per-minute headroom on demo day.
+- Beats 1 and 2 were validated end-to-end against the live API: the model
+  diagnoses the bug, and after eviction quotes the buried
+  `errno=104 connection reset by peer` log line **verbatim** via a single
+  `recall_context` page fault.
+- Kill stray `vibe`/`python` processes between rehearsals — an orphaned
+  session holds its lease and quietly burns your rate limit.
+
 ## Reset between rehearsals
 
 ```bash

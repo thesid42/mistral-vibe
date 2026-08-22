@@ -924,3 +924,29 @@ class CompactionDetails(ProtocolModel):
     summary_length: int | None = None
     old_session_id: str | None = None
     new_session_id: str | None = None
+
+
+class VMPageSnapshot(ProtocolModel):
+    id: str
+    page_type: str
+    state: str
+    token_count: int
+    access_count: int
+    source_path: str | None = None
+
+
+class VMStatsSnapshot(ProtocolModel):
+    evictions: int = 0
+    page_faults: int = 0
+    hits: int = 0
+    misses: int = 0
+    stale_recalls: int = 0
+    tokens_evicted: int = 0
+    context_budget: int = 0
+
+
+class VMSnapshotResult(ProtocolModel):
+    found: bool
+    pages: list[VMPageSnapshot] = Field(default_factory=list)
+    stats: VMStatsSnapshot = Field(default_factory=VMStatsSnapshot)
+    budget: int = 0

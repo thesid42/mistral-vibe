@@ -151,6 +151,7 @@ SERVER_METHODS: tuple[str, ...] = (
     "session/start",
     "session/stop",
     "session/turns/list",
+    "session/vmSnapshot",
     "skills/list",
     "stats/read",
     "telemetry/record",
@@ -512,6 +513,10 @@ class SessionTurnsListResponse(ProtocolModel):
     @property
     def backwards_cursor(self) -> str | None:
         return self.previous_cursor
+
+
+class SessionVMSnapshotParams(ProtocolModel):
+    session_id: str
 
 
 class SessionShellCommandParams(ProtocolModel):

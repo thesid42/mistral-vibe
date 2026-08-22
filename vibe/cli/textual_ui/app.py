@@ -250,7 +250,6 @@ from vibe.cli.vscode_extension_promo import (
     should_show_promo,
 )
 from vibe.config_values import FALLBACK_THEME
-from vibe.core.vibevm.inspect import find_session_db, load_snapshot
 from vibe.observability.logging import (
     get_log_level_chain,
     logger,
@@ -3411,10 +3410,8 @@ class VibeApp(App):  # noqa: PLR0904
         await self._mount_and_scroll(UserCommandMessage(DATA_RETENTION_MESSAGE))
 
     async def _show_vm(self, cmd_args: str = "", **kwargs: Any) -> None:
-        session_id = self.app_server.session_id
         try:
-            db = find_session_db(session_id)
-            snapshot = load_snapshot(db) if db is not None else None
+            result = await self.app_server.vm_snapshot()
         except Exception as e:
             await self._mount_and_scroll(
                 ErrorMessage(
@@ -3423,7 +3420,7 @@ class VibeApp(App):  # noqa: PLR0904
             )
             return
 
-        if snapshot is None:
+        if not result.found:
             await self._mount_and_scroll(
                 UserCommandMessage(
                     "VibeVM: no page store for this session. Enable it with "
@@ -3434,7 +3431,7 @@ class VibeApp(App):  # noqa: PLR0904
             return
 
         context_tokens = self.app_server.resources.runtime.stats.context_tokens
-        report = format_vm_report(snapshot, budget=None, context_tokens=context_tokens)
+        report = format_vm_report(result, budget=None, context_tokens=context_tokens)
         await self._mount_and_scroll(UserCommandMessage(report))
 
     async def _rename_session(self, cmd_args: str = "", **kwargs: Any) -> None:

@@ -57,6 +57,9 @@ from vibe.app_server.models import (
     PublicCallbackEntry,
     PublicHistoryEntry,
     PublicSessionState,
+    VMPageSnapshot,
+    VMSnapshotResult,
+    VMStatsSnapshot,
 )
 from vibe.app_server.protocol import (
     AgentSwitchParams,
@@ -104,6 +107,7 @@ from vibe.app_server.protocol import (
     SessionTitleUpdateResponse,
     SessionTurnsListParams,
     SessionTurnsListResponse,
+    SessionVMSnapshotParams,
     TeleportCancelParams,
     TeleportCancelResponse,
     TeleportPushRespondParams,
@@ -422,6 +426,10 @@ class CoreRequestHandler:
                 self._require_session(params.session_id)
                 response = SessionReadyReadResponse(
                     ready=self._agent_loop.is_initialized
+                )
+            case "session/vmSnapshot":
+                response = self._vm_snapshot(
+                    validate_wire(SessionVMSnapshotParams, raw_params)
                 )
             case "session/fork":
                 params = validate_wire(SessionForkParams, raw_params)
@@ -1130,6 +1138,43 @@ class CoreRequestHandler:
             )
         return SessionCompactResponse(
             summary=summary, state=handoff.state, session_log=handoff.session_log
+        )
+
+    def _vm_snapshot(self, params: SessionVMSnapshotParams) -> VMSnapshotResult:
+        self._require_session(params.session_id)
+        vibevm = self._agent_loop.vibevm
+        if not vibevm.enabled:
+            return VMSnapshotResult(found=False)
+        snapshot = vibevm.snapshot()
+        vibevm_config = getattr(self._agent_loop.config, "vibevm", None)
+        budget = (
+            vibevm_config.context_budget
+            if vibevm_config is not None
+            else snapshot.stats.context_budget
+        )
+        return VMSnapshotResult(
+            found=True,
+            pages=[
+                VMPageSnapshot(
+                    id=page.id,
+                    page_type=page.page_type,
+                    state=page.state.value,
+                    token_count=page.token_count,
+                    access_count=page.access_count,
+                    source_path=page.source_path,
+                )
+                for page in snapshot.pages
+            ],
+            stats=VMStatsSnapshot(
+                evictions=snapshot.stats.evictions,
+                page_faults=snapshot.stats.page_faults,
+                hits=snapshot.stats.hits,
+                misses=snapshot.stats.misses,
+                stale_recalls=snapshot.stats.stale_recalls,
+                tokens_evicted=snapshot.stats.tokens_evicted,
+                context_budget=snapshot.stats.context_budget,
+            ),
+            budget=budget,
         )
 
     def _public_state(

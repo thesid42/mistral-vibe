@@ -95,7 +95,7 @@ from vibe.app_server.session import AppServerSession, AppServerTurnError
 from vibe.app_server.transport import memory_transport_pair
 from vibe.core.agent_loop import AgentLoop
 from vibe.core.compaction import CompactionFailedError, select_model_context
-from vibe.core.config import ModelConfig, SessionLoggingConfig
+from vibe.core.config import ModelConfig, SessionLoggingConfig, VibeVMConfig
 from vibe.core.config.layers.overrides import OverridesLayer
 from vibe.core.session.session_lease import SessionBusyError, SessionLease
 from vibe.core.session.session_loader import SessionLoader
@@ -834,6 +834,23 @@ async def test_compaction_keeps_session_and_restores_full_history(
         "After compaction",
         "third question",
     ]
+
+
+@pytest.mark.asyncio
+async def test_vm_snapshot_reports_enabled_page_store() -> None:
+    config = build_test_vibe_config(
+        vibevm=VibeVMConfig(enabled=True, context_budget=12_345)
+    )
+    agent_loop = build_test_agent_loop(config=config)
+    session = await create_test_app_server_session(agent_loop)
+    try:
+        result = await session.vm_snapshot()
+    finally:
+        await session.close()
+
+    assert result.found is True
+    assert result.pages == []
+    assert result.budget == 12_345
 
 
 @pytest.mark.asyncio

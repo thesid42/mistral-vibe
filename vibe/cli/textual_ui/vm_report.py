@@ -2,22 +2,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from vibe.core.vibevm.models import ContextPage, PageState, VMSnapshot, VMStats
+from vibe.app_server.models import VMPageSnapshot, VMSnapshotResult, VMStatsSnapshot
 
 _THOUSAND = 1_000
-_STATE_ORDER: dict[PageState, int] = {
-    PageState.PINNED: 0,
-    PageState.HOT: 1,
-    PageState.COLD: 2,
-}
+_STATE_ORDER: dict[str, int] = {"pinned": 0, "hot": 1, "cold": 2}
 
 
 def format_vm_report(
-    snapshot: VMSnapshot, *, budget: int | None, context_tokens: int | None
+    snapshot: VMSnapshotResult, *, budget: int | None, context_tokens: int | None
 ) -> str:
     """Render a VibeVM snapshot as GFM markdown for ``UserCommandMessage``."""
     if budget is None:
-        budget = snapshot.stats.context_budget or None
+        budget = snapshot.budget or snapshot.stats.context_budget or None
     heading = _format_heading(context_tokens, budget)
     if not snapshot.pages:
         return f"{heading}\n\nNo pages tracked yet for this session.\n"
@@ -45,21 +41,21 @@ def _format_k(tokens: int) -> str:
     return f"{value}k"
 
 
-def _format_table(pages: list[ContextPage]) -> str:
+def _format_table(pages: list[VMPageSnapshot]) -> str:
     rows = [
         "| Page | Type | State | Tokens | Acc | Source |",
         "|------|------|-------|--------|-----|--------|",
     ]
     for page in sorted(pages, key=_sort_key):
         rows.append(
-            f"| {page.id} | {page.page_type} | {page.state.value.upper()} | "
+            f"| {page.id} | {page.page_type} | {page.state.upper()} | "
             f"{page.token_count:,} | {page.access_count:,} | "
             f"{_format_source(page.source_path)} |"
         )
     return "\n".join(rows)
 
 
-def _sort_key(page: ContextPage) -> tuple[int, str]:
+def _sort_key(page: VMPageSnapshot) -> tuple[int, str]:
     return (_STATE_ORDER.get(page.state, len(_STATE_ORDER)), page.id)
 
 
@@ -70,7 +66,7 @@ def _format_source(source_path: str | None) -> str:
     return basename.replace("|", "\\|")
 
 
-def _format_stats_line(stats: VMStats) -> str:
+def _format_stats_line(stats: VMStatsSnapshot) -> str:
     return (
         f"**Stats:** evictions {stats.evictions:,} · "
         f"page faults {stats.page_faults:,} · "

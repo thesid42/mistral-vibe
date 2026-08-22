@@ -46,6 +46,7 @@ from vibe.app_server.models import (
     UserDisplayContent,
     UserInputCallbackOutput,
     UserQuestionResult,
+    VMSnapshotResult,
 )
 from vibe.app_server.protocol import (
     AppServerResponseError,
@@ -82,6 +83,7 @@ from vibe.app_server.protocol import (
     SessionStartResponse,
     SessionStopParams,
     SessionStopResponse,
+    SessionVMSnapshotParams,
     TurnInterruptParams,
     TurnInterruptResponse,
     TurnStartParams,
@@ -485,6 +487,16 @@ class AppServerSession:
         summary = await self.resources.sessions.compact(extra_instructions)
         await self.resources.refresh()
         return summary
+
+    async def vm_snapshot(self) -> VMSnapshotResult:
+        client = await self._ensure_attached()
+        return validate_wire(
+            VMSnapshotResult,
+            await client.request(
+                "session/vmSnapshot",
+                SessionVMSnapshotParams(session_id=self.session_id),
+            ),
+        )
 
     async def clear_history(self) -> None:
         await self.resources.sessions.clear_history()

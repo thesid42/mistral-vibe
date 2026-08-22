@@ -68,6 +68,16 @@ def _tool_result(tool_call_id: str, name: str, content: str) -> LLMMessage:
     )
 
 
+def _log_content(total_lines: int, distinctive: dict[int, str]) -> str:
+    body = [
+        f"INFO line {i:04d}: routine heartbeat, nothing unusual here"
+        for i in range(total_lines)
+    ]
+    for index, text in distinctive.items():
+        body[index] = text
+    return "\n".join(body)
+
+
 def test_disabled_returns_passthrough_identical_list() -> None:
     cfg = _config(enabled=False)
     vm = VibeVM(session_id="disabled-1", config_getter=lambda: cfg)
@@ -328,103 +338,83 @@ def test_recall_miss_bumps_misses_stat(config_dir: Path) -> None:
     assert vm.snapshot().stats.misses == 1
 
 
-def test_single_turn_overflow_never_evicts_current_round(config_dir: Path) -> None:
-    # One real user message means every page's created_seq sits at/after
-    # current_round_start: tier 1 (round-based) and tier 2 (positional
-    # fallback) both refuse to touch it. Mid-turn overshoot is accepted by
-    # design -- the same stance built-in compaction takes, since it cannot
-    # shrink the current round either.
+def test_freshly_created_pages_survive_even_over_hard_budget(config_dir: Path) -> None:
+    # Only 2 tool calls total: the newest has 0 assistant messages after it,
+    # the other has 1 -- both are below the age gate, and both are trivially
+    # within the last-4-tool window too, so neither tier can touch them no
+    # matter how far over budget the view is.
+    cfg = _config(
+        min_page_tokens=1,
+        protect_recent_turns=1,
+        context_budget=50,
+        evict_target_ratio=0.5,
+    )
+    vm = VibeVM(session_id="age-1", config_getter=lambda: cfg)
+    messages = [_user("go")]
+    for i in range(2):
+        messages.append(_assistant_call(f"call-{i}", "bash"))
+        messages.append(_tool_result(f"call-{i}", "bash", f"{i}" * 2000))
+
+    out = vm.apply(messages)  # never raises despite a budget it cannot meet
+
+    by_tcid = {m.tool_call_id: m for m in out if m.role == Role.tool}
+    for i in range(2):
+        assert by_tcid[f"call-{i}"].content == f"{i}" * 2000
+    assert vm.snapshot().stats.evictions == 0
+
+
+def test_current_round_page_with_enough_age_evicts_over_hard_budget(
+    config_dir: Path,
+) -> None:
+    # 6 tool calls in ONE round: tier 1 is always empty here (a single round
+    # with protect_recent_turns>=1 protects everything by round boundary
+    # alone). call-0 has 5 assistant messages after it and sits outside the
+    # last-4 tool window, so tier 2's age+position rule allows it to be
+    # evicted mid-turn -- the new capability this change adds.
     cfg = _config(
         min_page_tokens=1,
         protect_recent_turns=1,
         context_budget=200,
         evict_target_ratio=0.5,
     )
-    vm = VibeVM(session_id="tier2-1", config_getter=lambda: cfg)
+    vm = VibeVM(session_id="age-2", config_getter=lambda: cfg)
     messages = [_user("one big turn, many tool calls")]
-    for i in range(5):
+    for i in range(6):
         messages.append(_assistant_call(f"call-{i}", "bash"))
         messages.append(_tool_result(f"call-{i}", "bash", f"{i}" * 1500))
 
-    out = vm.apply(messages)  # never raises despite a budget it cannot meet
+    out = vm.apply(messages)
 
     by_tcid = {m.tool_call_id: m for m in out if m.role == Role.tool}
-    for i in range(5):
-        assert by_tcid[f"call-{i}"].content == f"{i}" * 1500  # nothing evicted
-    assert vm.snapshot().stats.evictions == 0
+    assert by_tcid["call-0"].content.startswith(STUB_PREFIX)  # aged + out of window
+    for i in range(2, 6):  # last 4 tool results: positionally exempt regardless of age
+        assert by_tcid[f"call-{i}"].content == f"{i}" * 1500
+    assert vm.snapshot().stats.evictions >= 1
 
 
-def test_second_round_evicts_first_rounds_pages_down_to_target(
-    config_dir: Path,
-) -> None:
-    # protect_recent_turns=2 with only two rounds on the table means tier 1's
-    # boundary sits at index 0 either way (it is "protecting" both rounds at
-    # once), so tier 1 alone never finds anything here -- this exercises tier
-    # 2's positional-by-round fallback specifically.
+def test_just_recalled_page_survives_the_thrash_regression(config_dir: Path) -> None:
+    # Reproduces the original live-smoke bug: a page recalled moments ago must
+    # not be immediately re-evicted just because it is technically outside a
+    # round or position boundary -- it needs 2+ assistant turns to actually
+    # age before tier 2 will consider it.
     cfg = _config(
         min_page_tokens=1,
-        protect_recent_turns=2,
-        context_budget=1000,
-        evict_target_ratio=0.5,
-    )
-    vm = VibeVM(session_id="tier2-2", config_getter=lambda: cfg)
-    round_one = [
-        _user("round one"),
-        _assistant_call("call-0", "bash"),
-        _tool_result("call-0", "bash", "0" * 4000),
-    ]
-    vm.apply(round_one)
-    assert vm.snapshot().stats.evictions == 0  # single round: still current
-
-    round_two = [
-        *round_one,
-        _user("round two"),
-        _assistant_call("call-1", "bash"),
-        _tool_result("call-1", "bash", "1" * 400),
-    ]
-
-    out = vm.apply(round_two)
-
-    by_tcid = {m.tool_call_id: m for m in out if m.role == Role.tool}
-    assert by_tcid["call-0"].content.startswith(STUB_PREFIX)  # first round: aged out
-    assert by_tcid["call-1"].content == "1" * 400  # current round: stays
-
-    target = cfg.vibevm.context_budget * cfg.vibevm.evict_target_ratio
-    assert _estimate_tokens(out) <= target
-
-
-def test_recalled_page_in_current_round_survives_that_rounds_applies(
-    config_dir: Path,
-) -> None:
-    # A recall_context tool result is registered like any other page; it must
-    # get the same current-round immunity so the model never has to recall
-    # the same content twice within one turn.
-    cfg = _config(
-        min_page_tokens=1,
-        protect_recent_turns=2,
+        protect_recent_turns=1,
         context_budget=50,
         evict_target_ratio=0.5,
     )
-    vm = VibeVM(session_id="tier2-3", config_getter=lambda: cfg)
-    round_one = [
-        _user("investigate the bug"),
-        _assistant_call("call-old", "read_file"),
-        _tool_result("call-old", "read_file", "o" * 2000),
-    ]
-    vm.apply(round_one)
+    vm = VibeVM(session_id="age-3", config_getter=lambda: cfg)
+    messages = [_user("investigate the bug")]
+    for i in range(6):
+        messages.append(_assistant_call(f"call-{i}", "bash"))
+        messages.append(_tool_result(f"call-{i}", "bash", f"{i}" * 1500))
+    messages.append(_assistant_call("call-recall", "recall_context"))
+    messages.append(_tool_result("call-recall", "recall_context", "r" * 1500))
 
-    round_two = [
-        *round_one,
-        _user("what changed recently?"),
-        _assistant_call("call-recall", "recall_context"),
-        _tool_result("call-recall", "recall_context", "r" * 2000),
-    ]
-
-    out = vm.apply(round_two)  # tiny budget: would love to evict everything
+    out = vm.apply(messages)  # tiny budget: would love to evict everything
 
     by_tcid = {m.tool_call_id: m for m in out if m.role == Role.tool}
-    assert by_tcid["call-old"].content.startswith(STUB_PREFIX)  # prior round: evicted
-    assert by_tcid["call-recall"].content == "r" * 2000  # current round: survives
+    assert by_tcid["call-recall"].content == "r" * 1500  # just recalled: survives
 
 
 def test_rebind_same_session_id_is_a_no_op(config_dir: Path) -> None:
@@ -512,3 +502,109 @@ def test_recall_by_exact_page_id(config_dir: Path) -> None:
 
     assert outcome.status == "ok"
     assert outcome.page_id == page_id
+
+
+def test_recall_excerpt_contains_matched_line_verbatim_and_shrinks_page(
+    config_dir: Path,
+) -> None:
+    distinctive = "ERROR 500: connection reset by peer at auth.py:88"
+    content = _log_content(200, {100: distinctive})
+    cfg = _config(
+        min_page_tokens=1,
+        context_budget=1,
+        evict_target_ratio=0.5,
+        protect_recent_turns=0,
+    )
+    vm = VibeVM(session_id="excerpt-1", config_getter=lambda: cfg)
+    vm.apply([
+        _user("go"),
+        _assistant_call("call-1", "bash"),
+        _tool_result("call-1", "bash", content),
+    ])  # tiny budget: the page is evicted to COLD before recall
+
+    outcome = vm.recall("connection reset")
+
+    assert outcome.status == "ok"
+    assert outcome.content is not None
+    assert distinctive in outcome.content  # verbatim: never trimmed mid-line
+    assert len(outcome.content) < len(content)
+    assert outcome.note is not None
+    assert "full=true" in outcome.note
+
+
+def test_recall_full_true_bypasses_excerpting(config_dir: Path) -> None:
+    distinctive = "ERROR 500: connection reset by peer at auth.py:88"
+    content = _log_content(200, {100: distinctive})
+    cfg = _config(min_page_tokens=1)
+    vm = VibeVM(session_id="excerpt-2", config_getter=lambda: cfg)
+    vm.apply([
+        _user("go"),
+        _assistant_call("call-1", "bash"),
+        _tool_result("call-1", "bash", content),
+    ])
+
+    outcome = vm.recall("connection reset", full=True)
+
+    assert outcome.content == content
+    assert outcome.note is None
+
+
+def test_recall_small_page_returns_whole_content_no_excerpt_note(
+    config_dir: Path,
+) -> None:
+    cfg = _config(min_page_tokens=1)
+    vm = VibeVM(session_id="excerpt-3", config_getter=lambda: cfg)
+    content = "short tool output\n" * 5
+    vm.apply([
+        _user("go"),
+        _assistant_call("call-1", "bash"),
+        _tool_result("call-1", "bash", content),
+    ])
+
+    outcome = vm.recall("tool output")
+
+    assert outcome.content == content
+    assert outcome.note is None
+
+
+def test_recall_excerpt_merges_overlapping_windows(config_dir: Path) -> None:
+    first = "ERROR: first distinctive failure line"
+    second = "ERROR: second distinctive failure line"
+    content = _log_content(200, {100: first, 103: second})  # within +-3: overlaps
+    cfg = _config(min_page_tokens=1)
+    vm = VibeVM(session_id="excerpt-4", config_getter=lambda: cfg)
+    vm.apply([
+        _user("go"),
+        _assistant_call("call-1", "bash"),
+        _tool_result("call-1", "bash", content),
+    ])
+
+    outcome = vm.recall("distinctive failure")
+
+    assert outcome.content is not None
+    assert first in outcome.content
+    assert second in outcome.content
+    assert "lines skipped" not in outcome.content  # merged: no gap between them
+
+
+def test_recall_excerpt_falls_back_to_middle_truncation_without_query_terms(
+    config_dir: Path,
+) -> None:
+    # page_id bypasses search, so this isolates the excerpter's own "no terms"
+    # fallback from store.search's separate "empty query" miss behavior.
+    content = _log_content(200, {})
+    cfg = _config(min_page_tokens=1)
+    vm = VibeVM(session_id="excerpt-5", config_getter=lambda: cfg)
+    vm.apply([
+        _user("go"),
+        _assistant_call("call-1", "bash"),
+        _tool_result("call-1", "bash", content),
+    ])
+    page_id = vm.snapshot().pages[0].id
+
+    outcome = vm.recall("", page_id=page_id)  # no query terms at all
+
+    assert outcome.content is not None
+    assert len(outcome.content) < len(content)
+    assert outcome.note is not None
+    assert "full=true" in outcome.note

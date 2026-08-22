@@ -23,6 +23,10 @@ class RecallContextArgs(BaseModel):
         default=None,
         description="Exact page id like 'P041' from a [vibevm:paged-out] stub",
     )
+    full: bool = Field(
+        default=False,
+        description="Return the complete page instead of focused excerpts",
+    )
 
 
 class RecallContextResult(BaseModel):
@@ -76,7 +80,7 @@ class RecallContext(
             )
             return
 
-        outcome = vm.recall(args.query, args.page_id)
+        outcome = vm.recall(args.query, args.page_id, full=args.full)
         yield RecallContextResult(
             status=outcome.status,
             page_id=outcome.page_id,

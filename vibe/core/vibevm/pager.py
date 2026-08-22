@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import bisect
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 import hashlib
 import json
 from pathlib import Path
+import re
 from typing import TYPE_CHECKING, Protocol
 
 from vibe.core.paths import VM_DIR
@@ -37,6 +39,12 @@ _PER_MESSAGE_OVERHEAD = 8
 _SUMMARY_MAX_TOKENS = 30  # ~120 chars via truncate_middle_to_tokens's 4 bytes/token
 _STALE_TEXT_MAX_TOKENS = 4000
 _DEFAULT_IMPORTANCE = 0.5
+_EXCERPT_MAX_TOKENS = 1500  # recall() windows content larger than this
+_EXCERPT_CONTEXT_LINES = 3  # lines of context kept on each side of a match
+_EXCERPT_MAX_WINDOWS = 5
+_MIN_ASSISTANT_MSGS_AFTER = 2  # tier-2 age gate: turns since a page was created
+_PROTECT_LAST_TOOLS = 4  # tier-2 positional gate: never the newest N tool results
+_THOUSAND = 1000
 _IMPORTANCE_WEIGHTS: dict[str, float] = {
     "read_file": 0.7,
     "edit": 0.7,
@@ -131,15 +139,6 @@ def _score(page: ContextPage, max_seq: int) -> float:
     return 0.45 * recency + 0.25 * frequency + 0.30 * page.importance
 
 
-def _current_round_start(messages: Sequence[LLMMessage]) -> int:
-    """Index of the most recent real (non-injected) user message, else 0."""
-    for index in range(len(messages) - 1, -1, -1):
-        message = messages[index]
-        if message.role == Role.user and not message.injected:
-            return index
-    return 0
-
-
 def _tier1_candidates(
     pages_by_tcid: dict[str, ContextPage], evicted: set[str], boundary: int
 ) -> list[ContextPage]:
@@ -151,22 +150,130 @@ def _tier1_candidates(
     ]
 
 
-def _tier2_candidates(
-    pages_by_tcid: dict[str, ContextPage], evicted: set[str], current_round_start: int
-) -> list[ContextPage]:
-    """Positional fallback for when round protection leaves nothing evictable.
+def _last_tool_call_ids(messages: Sequence[LLMMessage], count: int) -> set[str]:
+    """The tool_call_ids of the last ``count`` tool-role messages, by view position."""
+    ids = [m.tool_call_id for m in messages if m.role == Role.tool and m.tool_call_id]
+    return set(ids[-count:]) if count > 0 else set()
 
-    HOT, unevicted, and created before the current round started: we never
-    steal frames from the instruction currently executing, so a page can only
-    be evicted here once the round that created it is no longer the newest.
+
+def _assistant_messages_after(assistant_indices: list[int], created_seq: int) -> int:
+    return len(assistant_indices) - bisect.bisect_right(assistant_indices, created_seq)
+
+
+def _tier2_candidates(
+    pages_by_tcid: dict[str, ContextPage],
+    evicted: set[str],
+    assistant_indices: list[int],
+    protected_recent_tools: set[str],
+) -> list[ContextPage]:
+    """Age-based fallback for when round protection leaves nothing evictable.
+
+    A page the model has answered past twice (``_MIN_ASSISTANT_MSGS_AFTER``
+    assistant turns have followed it) is digested into its own visible
+    messages by now; evicting it mid-turn is safe, and windowed page faults
+    make any re-fault cheap. The last ``_PROTECT_LAST_TOOLS`` tool results by
+    view position are exempt regardless of age, so the model's immediate
+    working set is never touched.
     """
     return [
         p
         for p in pages_by_tcid.values()
         if p.state == PageState.HOT
         and p.id not in evicted
-        and p.created_seq < current_round_start
+        and p.tool_call_id not in protected_recent_tools
+        and _assistant_messages_after(assistant_indices, p.created_seq)
+        >= _MIN_ASSISTANT_MSGS_AFTER
     ]
+
+
+def _query_terms(query: str) -> list[str]:
+    """Lowercase word tokens -- same tokenization idiom ``store.search`` uses."""
+    return [t.lower() for t in re.findall(r"\w+", query)]
+
+
+def _format_k_tokens(tokens: int) -> str:
+    if tokens < _THOUSAND:
+        return str(tokens)
+    value = f"{tokens / _THOUSAND:.1f}"
+    if value.endswith(".0"):
+        value = value[:-2]
+    return f"{value}k"
+
+
+def _windows_around(matched: list[int], line_count: int) -> list[tuple[int, int]]:
+    return [
+        (
+            max(0, i - _EXCERPT_CONTEXT_LINES),
+            min(line_count, i + _EXCERPT_CONTEXT_LINES + 1),
+        )
+        for i in matched
+    ]
+
+
+def _merge_windows(windows: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    merged: list[tuple[int, int]] = []
+    for start, end in sorted(windows):
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+    return merged
+
+
+def _assemble_excerpt(lines: list[str], windows: list[tuple[int, int]]) -> str:
+    # Whole-line granularity only: stop the instant a line wouldn't fit rather
+    # than trim inside it, so every returned line stays verbatim.
+    max_chars = _EXCERPT_MAX_TOKENS * 4  # matches approx_token_count's ratio
+    parts: list[str] = []
+    total_chars = 0
+    prev_end = 0
+    for start, end in windows:
+        if parts and start > prev_end:
+            marker = f"... [{start - prev_end} lines skipped] ..."
+            if total_chars + len(marker) > max_chars:
+                return "\n".join(parts)
+            parts.append(marker)
+            total_chars += len(marker) + 1
+        for line in lines[start:end]:
+            if total_chars + len(line) > max_chars:
+                return "\n".join(parts)
+            parts.append(line)
+            total_chars += len(line) + 1
+        prev_end = end
+    return "\n".join(parts)
+
+
+def _excerpt(content: str, query: str) -> str | None:
+    """Focused windows around query-term matches, or None if nothing matched."""
+    terms = _query_terms(query)
+    if not terms:
+        return None
+    lines = content.splitlines()
+    matched = [
+        i for i, line in enumerate(lines) if any(term in line.lower() for term in terms)
+    ]
+    if not matched:
+        return None
+    windows = _merge_windows(
+        _windows_around(matched[:_EXCERPT_MAX_WINDOWS], len(lines))
+    )
+    return _assemble_excerpt(lines, windows)
+
+
+def _windowed_content(
+    content: str, query: str, *, full: bool
+) -> tuple[str, str | None]:
+    original_tokens = approx_token_count(content)
+    if full or original_tokens <= _EXCERPT_MAX_TOKENS:
+        return content, None
+    excerpt = _excerpt(content, query) or truncate_middle_to_tokens(
+        content, _EXCERPT_MAX_TOKENS
+    )
+    note = (
+        f"Excerpt of a ~{_format_k_tokens(original_tokens)}-token page; "
+        "pass full=true for the complete content."
+    )
+    return excerpt, note
 
 
 class VibeVM:
@@ -215,7 +322,9 @@ class VibeVM:
         self._evict_to_budget(store, messages, out, index_by_tcid, pages_by_tcid, cfg)
         return out
 
-    def recall(self, query: str, page_id: str | None = None) -> RecallOutcome:
+    def recall(
+        self, query: str, page_id: str | None = None, full: bool = False
+    ) -> RecallOutcome:
         store = self._ensure_store()
         results = self._lookup(store, query, page_id)
         if not results:
@@ -238,12 +347,16 @@ class VibeVM:
             note = None
             status = "ok" if was_cold else "already_hot"
 
+        content, excerpt_note = _windowed_content(top.content, query, full=full)
+        if excerpt_note is not None:
+            note = f"{note} {excerpt_note}" if note else excerpt_note
+
         return RecallOutcome(
             status=status,
             page_id=top.id,
             page_type=top.page_type,
             source_path=top.source_path,
-            content=top.content,
+            content=content,
             note=note,
             other_matches=[f"{p.id} — {p.summary}" for p in rest[:4]],
         )
@@ -389,7 +502,10 @@ class VibeVM:
 
         target = budget * cfg.evict_target_ratio
         boundary = _protected_boundary_index(messages, cfg.protect_recent_turns)
-        current_round_start = _current_round_start(messages)
+        assistant_indices = [
+            i for i, m in enumerate(messages) if m.role == Role.assistant
+        ]
+        protected_recent_tools = _last_tool_call_ids(messages, _PROTECT_LAST_TOOLS)
         max_seq = max((p.created_seq for p in pages_by_tcid.values()), default=0) or 1
         evicted: set[str] = set()
 
@@ -399,7 +515,7 @@ class VibeVM:
                 if estimate <= budget:
                     return
                 candidates = _tier2_candidates(
-                    pages_by_tcid, evicted, current_round_start
+                    pages_by_tcid, evicted, assistant_indices, protected_recent_tools
                 )
                 if not candidates:
                     return

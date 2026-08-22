@@ -23,13 +23,17 @@ because project config requires the folder to be trusted.)
 ## Beat 1 — pressure and eviction (~90s)
 
 > **Prompt:** "Tests are failing and users report login sessions never expire.
-> Read server.log and docs/api.md, run the tests, look at auth.py, and tell me
-> what's going on."
+> Read server.log and auth.py, run the tests, and tell me what's going on."
 
-Vibe reads the log (≈19k tokens), the docs, runs pytest, reads `auth.py` — the
-view blows through the 10k budget. Run `/vm`: pages flipping **COLD**, evictions
+Vibe reads the log (≈11k tokens on its own — already over the 10k budget),
+reads `auth.py`, runs pytest. Once the model moves past the log, VibeVM pages
+it out mid-investigation. Run `/vm`: pages flipping **COLD**, evictions
 counted, tokens-evicted climbing. Talking point: *"nothing was summarized —
 every byte is still on disk in the page store."*
+
+Keep the prompt lean (no docs/api.md here) — fewer model calls means the
+per-minute rate limit never gets a vote. Narrate for ~a minute before the next
+beat; rate-limit windows reset per minute.
 
 ## Beat 2 — page fault (~45s)
 

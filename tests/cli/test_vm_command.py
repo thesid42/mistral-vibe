@@ -171,6 +171,32 @@ class TestFormatVmReport:
 
         assert report.splitlines()[0] == "## VibeVM"
 
+    def test_budget_falls_back_to_snapshot_stats_when_not_provided(self) -> None:
+        stats = VMStats(context_budget=20_000)
+        snapshot = VMSnapshot(pages=[_make_page()], stats=stats, db_path="x.db")
+
+        report = format_vm_report(snapshot, budget=None, context_tokens=14_200)
+
+        assert report.splitlines()[0] == "## VibeVM — 14.2k in view / 20k budget"
+
+    def test_budget_fallback_ignores_zero_context_budget_stat(self) -> None:
+        stats = VMStats(context_budget=0)
+        snapshot = VMSnapshot(pages=[_make_page()], stats=stats, db_path="x.db")
+
+        report = format_vm_report(snapshot, budget=None, context_tokens=14_200)
+
+        first_line = report.splitlines()[0]
+        assert first_line == "## VibeVM — 14.2k in view"
+        assert "budget" not in first_line
+
+    def test_explicit_budget_takes_precedence_over_snapshot_stats(self) -> None:
+        stats = VMStats(context_budget=999_000)
+        snapshot = VMSnapshot(pages=[_make_page()], stats=stats, db_path="x.db")
+
+        report = format_vm_report(snapshot, budget=20_000, context_tokens=14_200)
+
+        assert report.splitlines()[0] == "## VibeVM — 14.2k in view / 20k budget"
+
     def test_page_content_is_never_rendered(self) -> None:
         page = _make_page().model_copy(update={"content": "TOP-SECRET-CONTENT"})
         snapshot = VMSnapshot(pages=[page], stats=VMStats(), db_path="x.db")

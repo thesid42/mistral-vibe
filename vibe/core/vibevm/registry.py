@@ -6,6 +6,11 @@ _REGISTRY: dict[str, VibeVM] = {}
 
 
 def register(session_id: str, vm: VibeVM) -> None:
+    stale = [
+        key for key, value in _REGISTRY.items() if value is vm and key != session_id
+    ]
+    for key in stale:
+        del _REGISTRY[key]
     _REGISTRY[session_id] = vm
 
 

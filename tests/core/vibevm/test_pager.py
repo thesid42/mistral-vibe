@@ -263,15 +263,18 @@ def test_apply_is_idempotent_with_zero_additional_writes(config_dir: Path) -> No
     upsert = MagicMock(wraps=store.upsert_page)
     set_state = MagicMock(wraps=store.set_state)
     bump = MagicMock(wraps=store.bump_stat)
+    set_stat = MagicMock(wraps=store.set_stat)
     store.upsert_page = upsert  # type: ignore[method-assign]
     store.set_state = set_state  # type: ignore[method-assign]
     store.bump_stat = bump  # type: ignore[method-assign]
+    store.set_stat = set_stat  # type: ignore[method-assign]
 
     second = vm.apply(messages)
 
     upsert.assert_not_called()
     set_state.assert_not_called()
     bump.assert_not_called()
+    set_stat.assert_not_called()
     assert [m.content for m in second] == [m.content for m in first]
 
 
@@ -323,6 +326,100 @@ def test_recall_miss_bumps_misses_stat(config_dir: Path) -> None:
 
     assert outcome.status == "miss"
     assert vm.snapshot().stats.misses == 1
+
+
+def test_single_turn_overflow_evicts_via_tier2_keeping_last_three_tools(
+    config_dir: Path,
+) -> None:
+    # One real user message means every page's created_seq sits at/after the
+    # round boundary: tier 1 (round-based protection) is always empty here, so
+    # eviction must fall through to the positional tier-2 fallback.
+    cfg = _config(
+        min_page_tokens=1,
+        protect_recent_turns=1,
+        context_budget=200,
+        evict_target_ratio=0.5,
+    )
+    vm = VibeVM(session_id="tier2-1", config_getter=lambda: cfg)
+    messages = [_user("one big turn, many tool calls")]
+    for i in range(5):
+        messages.append(_assistant_call(f"call-{i}", "bash"))
+        messages.append(_tool_result(f"call-{i}", "bash", f"{i}" * 1500))
+
+    out = vm.apply(messages)
+
+    by_tcid = {m.tool_call_id: m for m in out if m.role == Role.tool}
+    assert by_tcid["call-0"].content.startswith(STUB_PREFIX)
+    assert by_tcid["call-1"].content.startswith(STUB_PREFIX)
+    # The last 3 tool messages by view position are protected from tier 2.
+    assert by_tcid["call-2"].content == "2" * 1500
+    assert by_tcid["call-3"].content == "3" * 1500
+    assert by_tcid["call-4"].content == "4" * 1500
+
+
+def test_rebind_same_session_id_is_a_no_op(config_dir: Path) -> None:
+    cfg = _config(min_page_tokens=1)
+    vm = VibeVM(session_id="same-1", config_getter=lambda: cfg)
+    vm.apply([
+        _user("go"),
+        _assistant_call("call-1", "bash"),
+        _tool_result("call-1", "bash", "x" * 400),
+    ])
+    store_before = vm._ensure_store()
+
+    vm.rebind("same-1")
+
+    assert vm._store is store_before  # same handle: no close/reopen
+    assert vm.session_id == "same-1"
+
+
+def test_rebind_different_session_id_closes_and_reopens_store(config_dir: Path) -> None:
+    cfg = _config(min_page_tokens=1)
+    vm = VibeVM(session_id="old-sess", config_getter=lambda: cfg)
+    vm.apply([
+        _user("go"),
+        _assistant_call("call-1", "bash"),
+        _tool_result("call-1", "bash", "x" * 400),
+    ])
+
+    vm.rebind("new-sess")
+
+    assert vm.session_id == "new-sess"
+    assert vm._store is None  # closed; will lazily reopen under the new id
+
+
+def test_context_budget_recorded_once_and_shown_in_snapshot(config_dir: Path) -> None:
+    cfg = _config(min_page_tokens=1, context_budget=12_345)
+    vm = VibeVM(session_id="budget-stat-1", config_getter=lambda: cfg)
+    messages = [
+        _user("go"),
+        _assistant_call("call-1", "bash"),
+        _tool_result("call-1", "bash", "x" * 400),
+    ]
+
+    vm.apply(messages)
+    assert vm.snapshot().stats.context_budget == 12_345
+
+    store = vm._ensure_store()
+    set_stat = MagicMock(wraps=store.set_stat)
+    store.set_stat = set_stat  # type: ignore[method-assign]
+
+    vm.apply(messages)  # unchanged config: must not write the stat again
+
+    set_stat.assert_not_called()
+
+
+def test_context_budget_rewritten_when_config_changes(config_dir: Path) -> None:
+    cfg = _config(min_page_tokens=1, context_budget=100)
+    vm = VibeVM(session_id="budget-stat-2", config_getter=lambda: cfg)
+    vm.apply([_user("go")])
+    assert vm.snapshot().stats.context_budget == 100
+
+    assert cfg.vibevm is not None
+    cfg.vibevm.context_budget = 200  # simulate a config change between calls
+    vm.apply([_user("go")])
+
+    assert vm.snapshot().stats.context_budget == 200
 
 
 def test_recall_by_exact_page_id(config_dir: Path) -> None:

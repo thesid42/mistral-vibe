@@ -38,6 +38,9 @@ class VMStats(BaseModel):
     misses: int = 0  # recall queries that found nothing
     stale_recalls: int = 0
     tokens_evicted: int = 0  # cumulative tokens moved out of view
+    context_budget: int = (
+        0  # last configured budget, for /vm when live config is unavailable
+    )
 
 
 class VMSnapshot(BaseModel):

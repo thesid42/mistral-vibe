@@ -210,6 +210,12 @@ class PageStore:
                 (key, by),
             )
 
+    def set_stat(self, key: str, value: int) -> None:
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO stats (key, value) VALUES (?, ?)", (key, value)
+            )
+
     def get_stats(self) -> VMStats:
         rows = self._conn.execute("SELECT key, value FROM stats").fetchall()
         return stats_from_rows(rows)

@@ -37,6 +37,7 @@ _PER_MESSAGE_OVERHEAD = 8
 _SUMMARY_MAX_TOKENS = 30  # ~120 chars via truncate_middle_to_tokens's 4 bytes/token
 _STALE_TEXT_MAX_TOKENS = 4000
 _DEFAULT_IMPORTANCE = 0.5
+_PROTECT_LAST_TOOLS = 3  # positional fallback: never evict the newest N tool results
 _IMPORTANCE_WEIGHTS: dict[str, float] = {
     "read_file": 0.7,
     "edit": 0.7,
@@ -129,6 +130,41 @@ def _score(page: ContextPage, max_seq: int) -> float:
     return 0.45 * recency + 0.25 * frequency + 0.30 * page.importance
 
 
+def _last_tool_call_ids(messages: Sequence[LLMMessage], count: int) -> set[str]:
+    """The tool_call_ids of the last ``count`` tool-role messages, by view position."""
+    ids = [m.tool_call_id for m in messages if m.role == Role.tool and m.tool_call_id]
+    return set(ids[-count:]) if count > 0 else set()
+
+
+def _tier1_candidates(
+    pages_by_tcid: dict[str, ContextPage], evicted: set[str], boundary: int
+) -> list[ContextPage]:
+    """Round-protected candidates: HOT, unevicted, outside the last N user rounds."""
+    return [
+        p
+        for p in pages_by_tcid.values()
+        if p.state == PageState.HOT and p.id not in evicted and p.created_seq < boundary
+    ]
+
+
+def _tier2_candidates(
+    pages_by_tcid: dict[str, ContextPage], evicted: set[str], protected_tcids: set[str]
+) -> list[ContextPage]:
+    """Positional fallback for when round protection leaves nothing evictable.
+
+    HOT, unevicted, and not one of the last ``_PROTECT_LAST_TOOLS`` tool
+    messages by view position — so a single huge turn (one round, many big
+    tool results) can still shed content once truly over the hard budget.
+    """
+    return [
+        p
+        for p in pages_by_tcid.values()
+        if p.state == PageState.HOT
+        and p.id not in evicted
+        and p.tool_call_id not in protected_tcids
+    ]
+
+
 class VibeVM:
     """Per-session view-transform manager: pages large tool results out of the
     outgoing message array under budget pressure and restores them on demand.
@@ -144,6 +180,7 @@ class VibeVM:
         self.session_id = session_id
         self._config_getter = config_getter
         self._store: PageStore | None = None
+        self._last_written_budget: int | None = None
 
     @property
     def enabled(self) -> bool:
@@ -164,6 +201,9 @@ class VibeVM:
             return list(messages)
 
         store = self._ensure_store()
+        if cfg.context_budget != self._last_written_budget:
+            store.set_stat("context_budget", cfg.context_budget)
+            self._last_written_budget = cfg.context_budget
         self._register_new_pages(store, messages, cfg.min_page_tokens)
 
         pages_by_tcid = {p.tool_call_id: p for p in store.all_pages()}
@@ -212,9 +252,12 @@ class VibeVM:
         )
 
     def rebind(self, session_id: str) -> None:
+        if session_id == self.session_id:
+            return
         if self._store is not None:
             self._store.close()
             self._store = None
+        self._last_written_budget = None
         self.session_id = session_id
 
     def _lookup(
@@ -342,19 +385,20 @@ class VibeVM:
 
         target = budget * cfg.evict_target_ratio
         boundary = _protected_boundary_index(messages, cfg.protect_recent_turns)
+        protected_recent_tools = _last_tool_call_ids(messages, _PROTECT_LAST_TOOLS)
         max_seq = max((p.created_seq for p in pages_by_tcid.values()), default=0) or 1
         evicted: set[str] = set()
 
         while estimate > target:
-            candidates = [
-                p
-                for p in pages_by_tcid.values()
-                if p.state == PageState.HOT
-                and p.id not in evicted
-                and p.created_seq < boundary
-            ]
+            candidates = _tier1_candidates(pages_by_tcid, evicted, boundary)
             if not candidates:
-                return
+                if estimate <= budget:
+                    return
+                candidates = _tier2_candidates(
+                    pages_by_tcid, evicted, protected_recent_tools
+                )
+                if not candidates:
+                    return
             victim = min(candidates, key=lambda p: _score(p, max_seq))
             evicted.add(victim.id)
             store.set_state(victim.id, PageState.COLD)

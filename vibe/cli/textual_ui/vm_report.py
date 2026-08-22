@@ -16,6 +16,8 @@ def format_vm_report(
     snapshot: VMSnapshot, *, budget: int | None, context_tokens: int | None
 ) -> str:
     """Render a VibeVM snapshot as GFM markdown for ``UserCommandMessage``."""
+    if budget is None:
+        budget = snapshot.stats.context_budget or None
     heading = _format_heading(context_tokens, budget)
     if not snapshot.pages:
         return f"{heading}\n\nNo pages tracked yet for this session.\n"

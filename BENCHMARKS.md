@@ -65,6 +65,41 @@ on the benchmarking machine (session scratchpad `bench/`: `vm_s*.txt`,
    destroys that line's verbatim form (summaries), and its run never got far
    enough to try re-reading it from disk.
 
+## Added scenario: VibeVM AND compaction both pinned at 10K
+
+A fourth condition probing the worst-case pairing: VibeVM enabled
+(budget 10000) *and* auto-compaction pinned to the same 10000 threshold
+(session `session_20260822_232635_b2a21e4d`, home `bench/home-hybrid`).
+
+| | VM + compaction @ 10K |
+|---|---|
+| S1 (investigate) | ✗ turn-capped at 14 calls; **207,198** prompt tokens; **2 compactions** fired |
+| S2 (exact errno line) | ✓ verbatim — but via **file re-read + grep**, not a page fault |
+| End context / totals | 6,722 ctx; 248,379 prompt tokens incl. S2; VM: 18 evictions, 5 faults |
+
+What the transcript shows: VibeVM's protected working set necessarily rides
+above 10K mid-investigation, so compaction keeps firing anyway — and each
+firing cuts the view *including the stubs*, so the model re-reads its files
+and the store accumulates duplicate pages (three separate 11.6K copies of the
+log). The two mechanisms fight when given the same limit.
+
+Three honest conclusions:
+
+1. **Configuration guidance, now measured**: VibeVM's budget must sit well
+   below the compaction threshold. The shipped defaults do exactly that
+   (10K budget vs 200K threshold) — which is why the VM-only condition logged
+   zero compactions.
+2. Even in this hostile pairing, VibeVM damped the damage versus
+   compaction-alone: 207K tokens reaching deep into the task (it even
+   attempted the fix) with 5 working page faults across compaction
+   boundaries, versus 445K without finishing step one.
+3. The post-compaction exact quote succeeded because the *source file still
+   existed on disk* — the model grepped it rather than recalling (compaction
+   had wiped the stubs that would have steered it to recall). For file-backed
+   evidence, disk is an alternate recovery path; for ephemeral evidence (test
+   runs, command output), only the page store survives compaction — the
+   VM-only condition's quote did come through a true page fault.
+
 ## Methodology — exact inputs
 
 Every condition ran the identical three prompts, via `uv run vibe` in

@@ -535,16 +535,22 @@ def test_recall_excerpt_contains_matched_line_verbatim_and_shrinks_page(
 def test_recall_full_true_bypasses_excerpting(config_dir: Path) -> None:
     distinctive = "ERROR 500: connection reset by peer at auth.py:88"
     content = _log_content(200, {100: distinctive})
-    cfg = _config(min_page_tokens=1)
+    cfg = _config(
+        min_page_tokens=1,
+        context_budget=1,
+        evict_target_ratio=0.5,
+        protect_recent_turns=0,
+    )
     vm = VibeVM(session_id="excerpt-2", config_getter=lambda: cfg)
     vm.apply([
         _user("go"),
         _assistant_call("call-1", "bash"),
         _tool_result("call-1", "bash", content),
-    ])
+    ])  # tiny budget: the only page is evicted to COLD
 
     outcome = vm.recall("connection reset", full=True)
 
+    assert outcome.status == "ok"  # not already_hot: under the full=True cap
     assert outcome.content == content
     assert outcome.note is None
 
@@ -552,17 +558,23 @@ def test_recall_full_true_bypasses_excerpting(config_dir: Path) -> None:
 def test_recall_small_page_returns_whole_content_no_excerpt_note(
     config_dir: Path,
 ) -> None:
-    cfg = _config(min_page_tokens=1)
+    cfg = _config(
+        min_page_tokens=1,
+        context_budget=1,
+        evict_target_ratio=0.5,
+        protect_recent_turns=0,
+    )
     vm = VibeVM(session_id="excerpt-3", config_getter=lambda: cfg)
     content = "short tool output\n" * 5
     vm.apply([
         _user("go"),
         _assistant_call("call-1", "bash"),
         _tool_result("call-1", "bash", content),
-    ])
+    ])  # tiny budget: the only page is evicted to COLD
 
     outcome = vm.recall("tool output")
 
+    assert outcome.status == "ok"  # not already_hot: excerpting is size-based here
     assert outcome.content == content
     assert outcome.note is None
 
@@ -593,18 +605,101 @@ def test_recall_excerpt_falls_back_to_middle_truncation_without_query_terms(
     # page_id bypasses search, so this isolates the excerpter's own "no terms"
     # fallback from store.search's separate "empty query" miss behavior.
     content = _log_content(200, {})
-    cfg = _config(min_page_tokens=1)
+    cfg = _config(
+        min_page_tokens=1,
+        context_budget=1,
+        evict_target_ratio=0.5,
+        protect_recent_turns=0,
+    )
     vm = VibeVM(session_id="excerpt-5", config_getter=lambda: cfg)
     vm.apply([
         _user("go"),
         _assistant_call("call-1", "bash"),
         _tool_result("call-1", "bash", content),
-    ])
+    ])  # tiny budget: the only page is evicted to COLD
     page_id = vm.snapshot().pages[0].id
 
     outcome = vm.recall("", page_id=page_id)  # no query terms at all
 
+    assert outcome.status == "ok"  # not already_hot: keeps the pass-full=true note
     assert outcome.content is not None
     assert len(outcome.content) < len(content)
     assert outcome.note is not None
     assert "full=true" in outcome.note
+
+
+def test_recall_full_true_over_cap_truncates_middle(config_dir: Path) -> None:
+    content = "z" * 30000  # 7500 tokens: over the 6000 full=True cap
+    cfg = _config(
+        min_page_tokens=1,
+        context_budget=1,
+        evict_target_ratio=0.5,
+        protect_recent_turns=0,
+    )
+    vm = VibeVM(session_id="full-cap-1", config_getter=lambda: cfg)
+    vm.apply([
+        _user("go"),
+        _assistant_call("call-1", "bash"),
+        _tool_result("call-1", "bash", content),
+    ])  # tiny budget: the only page is evicted to COLD
+    page_id = vm.snapshot().pages[0].id
+
+    outcome = vm.recall("", page_id=page_id, full=True)
+
+    assert outcome.status == "ok"
+    assert outcome.content is not None
+    assert len(outcome.content) < len(content)
+    assert outcome.content.startswith("z" * 100)  # head preserved
+    assert outcome.content.endswith("z" * 100)  # tail preserved
+    assert outcome.note == (
+        "Showing ~6k of ~7.5k tokens (middle omitted); "
+        "use a specific query to excerpt the exact region."
+    )
+
+
+def test_recall_full_true_under_cap_returns_complete_content(config_dir: Path) -> None:
+    content = "z" * 24000  # exactly 6000 tokens: at the full=True cap
+    cfg = _config(
+        min_page_tokens=1,
+        context_budget=1,
+        evict_target_ratio=0.5,
+        protect_recent_turns=0,
+    )
+    vm = VibeVM(session_id="full-cap-2", config_getter=lambda: cfg)
+    vm.apply([
+        _user("go"),
+        _assistant_call("call-1", "bash"),
+        _tool_result("call-1", "bash", content),
+    ])  # tiny budget: the only page is evicted to COLD
+    page_id = vm.snapshot().pages[0].id
+
+    outcome = vm.recall("", page_id=page_id, full=True)
+
+    assert outcome.status == "ok"
+    assert outcome.content == content
+    assert outcome.note is None
+
+
+def test_recall_already_hot_returns_excerpt_even_with_full_true(
+    config_dir: Path,
+) -> None:
+    distinctive = "ERROR 500: connection reset by peer at auth.py:88"
+    content = _log_content(200, {100: distinctive})
+    cfg = _config(min_page_tokens=1)  # huge default budget: page never evicted
+    vm = VibeVM(session_id="hot-1", config_getter=lambda: cfg)
+    vm.apply([
+        _user("go"),
+        _assistant_call("call-1", "bash"),
+        _tool_result("call-1", "bash", content),
+    ])
+
+    outcome = vm.recall("connection reset", full=True)
+
+    assert outcome.status == "already_hot"
+    assert outcome.content is not None
+    assert outcome.content != content  # excerpt, not the full text
+    assert len(outcome.content) < len(content)
+    assert distinctive in outcome.content  # excerpt still finds the query match
+    assert outcome.note == (
+        "This page is already present in your context in full; excerpt shown."
+    )

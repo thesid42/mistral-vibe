@@ -23,7 +23,8 @@ because project config requires the folder to be trusted.)
 ## Beat 1 — pressure and eviction (~90s)
 
 > **Prompt:** "Tests are failing and users report login sessions never expire.
-> Read server.log and auth.py, run the tests, and tell me what's going on."
+> Read the files server.log and auth.py here in the current directory (use
+> relative paths), run pytest test_auth.py, and tell me what's going on."
 
 Vibe reads the log (≈11k tokens on its own — already over the 10k budget),
 reads `auth.py`, runs pytest. Once the model moves past the log, VibeVM pages

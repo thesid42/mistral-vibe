@@ -210,13 +210,13 @@ async def test_recall_full_true_returns_complete_content(
 ) -> None:
     distinctive = "ERROR 500: connection reset by peer at auth.py:88"
     content = _log_content(200, {100: distinctive})
-    cfg = _config()
+    cfg = _config(context_budget=1, evict_target_ratio=0.5)
     vm = VibeVM(session_id=session_id, config_getter=lambda: cfg)
     vm.apply([
         _user("go"),
         _assistant_call("call-1", "bash"),
         _tool_result("call-1", "bash", content),
-    ])
+    ])  # tiny budget: the only page is evicted to COLD
     vibevm_registry.register(session_id, vm)
 
     tool = _make_tool()
@@ -225,6 +225,7 @@ async def test_recall_full_true_returns_complete_content(
         tool.run(RecallContextArgs(query="connection reset", full=True), ctx)
     )
 
+    assert result.status == "ok"  # not already_hot: under the full=True cap
     assert result.content == content
 
 
@@ -232,20 +233,21 @@ async def test_recall_full_true_returns_complete_content(
 async def test_recall_small_page_returns_whole_content(
     config_dir: Path, session_id: str
 ) -> None:
-    cfg = _config()
+    cfg = _config(context_budget=1, evict_target_ratio=0.5)
     vm = VibeVM(session_id=session_id, config_getter=lambda: cfg)
     content = "short tool output\n" * 5
     vm.apply([
         _user("go"),
         _assistant_call("call-1", "bash"),
         _tool_result("call-1", "bash", content),
-    ])
+    ])  # tiny budget: the only page is evicted to COLD
     vibevm_registry.register(session_id, vm)
 
     tool = _make_tool()
     ctx = InvokeContext(tool_call_id="t1", session_id=session_id)
     result = await collect_result(tool.run(RecallContextArgs(query="tool output"), ctx))
 
+    assert result.status == "ok"  # not already_hot: excerpting is size-based here
     assert result.content == content
 
 
@@ -285,3 +287,63 @@ async def test_recall_stale_refreshed_combines_with_excerpt(
     assert result.note is not None
     assert "showing current content" in result.note  # stale note preserved
     assert "full=true" in result.note  # excerpt note appended
+
+
+@pytest.mark.asyncio
+async def test_recall_full_true_over_cap_returns_middle_truncated(
+    config_dir: Path, session_id: str
+) -> None:
+    content = "z" * 30000  # 7500 tokens: over the 6000 full=True cap
+    cfg = _config(context_budget=1, evict_target_ratio=0.5)
+    vm = VibeVM(session_id=session_id, config_getter=lambda: cfg)
+    vm.apply([
+        _user("go"),
+        _assistant_call("call-1", "bash"),
+        _tool_result("call-1", "bash", content),
+    ])  # tiny budget: the only page is evicted to COLD
+    vibevm_registry.register(session_id, vm)
+    page_id = vm.snapshot().pages[0].id
+
+    tool = _make_tool()
+    ctx = InvokeContext(tool_call_id="t1", session_id=session_id)
+    result = await collect_result(
+        tool.run(RecallContextArgs(query="", page_id=page_id, full=True), ctx)
+    )
+
+    assert result.status == "ok"
+    assert result.content is not None
+    assert len(result.content) < len(content)
+    assert result.note == (
+        "Showing ~6k of ~7.5k tokens (middle omitted); "
+        "use a specific query to excerpt the exact region."
+    )
+
+
+@pytest.mark.asyncio
+async def test_recall_already_hot_page_returns_excerpt_even_with_full_true(
+    config_dir: Path, session_id: str
+) -> None:
+    distinctive = "ERROR 500: connection reset by peer at auth.py:88"
+    content = _log_content(200, {100: distinctive})
+    cfg = _config()  # huge default budget: page never evicted, stays HOT
+    vm = VibeVM(session_id=session_id, config_getter=lambda: cfg)
+    vm.apply([
+        _user("go"),
+        _assistant_call("call-1", "bash"),
+        _tool_result("call-1", "bash", content),
+    ])
+    vibevm_registry.register(session_id, vm)
+
+    tool = _make_tool()
+    ctx = InvokeContext(tool_call_id="t1", session_id=session_id)
+    result = await collect_result(
+        tool.run(RecallContextArgs(query="connection reset", full=True), ctx)
+    )
+
+    assert result.status == "already_hot"
+    assert result.content is not None
+    assert result.content != content  # excerpt, not the full text
+    assert distinctive in result.content  # excerpt still finds the query match
+    assert result.note == (
+        "This page is already present in your context in full; excerpt shown."
+    )

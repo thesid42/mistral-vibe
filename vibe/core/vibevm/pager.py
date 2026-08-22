@@ -40,6 +40,7 @@ _SUMMARY_MAX_TOKENS = 30  # ~120 chars via truncate_middle_to_tokens's 4 bytes/t
 _STALE_TEXT_MAX_TOKENS = 4000
 _DEFAULT_IMPORTANCE = 0.5
 _EXCERPT_MAX_TOKENS = 1500  # recall() windows content larger than this
+_FULL_MAX_TOKENS = 6000  # recall(full=True) still caps at this many tokens
 _EXCERPT_CONTEXT_LINES = 3  # lines of context kept on each side of a match
 _EXCERPT_MAX_WINDOWS = 5
 _MIN_ASSISTANT_MSGS_AFTER = 2  # tier-2 age gate: turns since a page was created
@@ -261,10 +262,32 @@ def _excerpt(content: str, query: str) -> str | None:
 
 
 def _windowed_content(
-    content: str, query: str, *, full: bool
+    content: str, query: str, *, full: bool, already_hot: bool
 ) -> tuple[str, str | None]:
+    if already_hot:
+        # Content the model never lost (page stayed HOT) is already fully
+        # present in its context; re-showing it in full would double its cost,
+        # so this ignores both size and ``full`` and always excerpts.
+        excerpt = _excerpt(content, query) or truncate_middle_to_tokens(
+            content, _EXCERPT_MAX_TOKENS
+        )
+        return (
+            excerpt,
+            "This page is already present in your context in full; excerpt shown.",
+        )
+
     original_tokens = approx_token_count(content)
-    if full or original_tokens <= _EXCERPT_MAX_TOKENS:
+    if full:
+        if original_tokens <= _FULL_MAX_TOKENS:
+            return content, None
+        note = (
+            f"Showing ~{_format_k_tokens(_FULL_MAX_TOKENS)} of "
+            f"~{_format_k_tokens(original_tokens)} tokens (middle omitted); "
+            "use a specific query to excerpt the exact region."
+        )
+        return truncate_middle_to_tokens(content, _FULL_MAX_TOKENS), note
+
+    if original_tokens <= _EXCERPT_MAX_TOKENS:
         return content, None
     excerpt = _excerpt(content, query) or truncate_middle_to_tokens(
         content, _EXCERPT_MAX_TOKENS
@@ -347,7 +370,9 @@ class VibeVM:
             note = None
             status = "ok" if was_cold else "already_hot"
 
-        content, excerpt_note = _windowed_content(top.content, query, full=full)
+        content, excerpt_note = _windowed_content(
+            top.content, query, full=full, already_hot=status == "already_hot"
+        )
         if excerpt_note is not None:
             note = f"{note} {excerpt_note}" if note else excerpt_note
 

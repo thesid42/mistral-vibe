@@ -139,6 +139,7 @@ from vibe.cli.textual_ui.notifications import (
 )
 from vibe.cli.textual_ui.quit_manager import QuitManager
 from vibe.cli.textual_ui.scheduled_loop_runner import ScheduledLoopCommands
+from vibe.cli.textual_ui.vm_report import format_vm_report
 from vibe.cli.textual_ui.widgets.approval_app import ApprovalApp
 from vibe.cli.textual_ui.widgets.banner.banner import Banner
 from vibe.cli.textual_ui.widgets.chat_input import ChatInputBody, ChatInputContainer
@@ -249,6 +250,7 @@ from vibe.cli.vscode_extension_promo import (
     should_show_promo,
 )
 from vibe.config_values import FALLBACK_THEME
+from vibe.core.vibevm.inspect import find_session_db, load_snapshot
 from vibe.observability.logging import (
     get_log_level_chain,
     logger,
@@ -3407,6 +3409,33 @@ class VibeApp(App):  # noqa: PLR0904
 
     async def _show_data_retention(self, **kwargs: Any) -> None:
         await self._mount_and_scroll(UserCommandMessage(DATA_RETENTION_MESSAGE))
+
+    async def _show_vm(self, cmd_args: str = "", **kwargs: Any) -> None:
+        session_id = self.app_server.session_id
+        try:
+            db = find_session_db(session_id)
+            snapshot = load_snapshot(db) if db is not None else None
+        except Exception as e:
+            await self._mount_and_scroll(
+                ErrorMessage(
+                    f"Failed to read VibeVM store: {e}", collapsed=self._tools_collapsed
+                )
+            )
+            return
+
+        if snapshot is None:
+            await self._mount_and_scroll(
+                UserCommandMessage(
+                    "VibeVM: no page store for this session. Enable it with "
+                    "`[vibevm] enabled = true` in config.toml, or set "
+                    "`VIBE_VIBEVM__ENABLED=true`."
+                )
+            )
+            return
+
+        context_tokens = self.app_server.resources.runtime.stats.context_tokens
+        report = format_vm_report(snapshot, budget=None, context_tokens=context_tokens)
+        await self._mount_and_scroll(UserCommandMessage(report))
 
     async def _rename_session(self, cmd_args: str = "", **kwargs: Any) -> None:
         title = cmd_args.strip()

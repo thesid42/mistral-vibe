@@ -140,6 +140,12 @@ class CommandRegistry:
                 handler="_show_whoami",
                 side_channel=True,
             ),
+            "vm": Command(
+                aliases=frozenset(["/vm"]),
+                description="Show VibeVM page table and stats",
+                handler="_show_vm",
+                side_channel=True,
+            ),
             "teleport": Command(
                 aliases=frozenset(["/teleport"]),
                 description="Teleport session to Vibe Code Web",

@@ -95,4 +95,7 @@ budget.
 | Config | `[vibevm]` in `vibe/core/config/models.py` |
 | Page stores on disk | `~/.vibe/vm/<session_id>.db` |
 
+Measured, not just claimed: live ablation numbers (VibeVM vs full context vs
+forced compaction) are in [BENCHMARKS.md](BENCHMARKS.md).
+
 Built for the Mistral hackathon (Track 2) on top of `mistral-vibe` v2.24.3.

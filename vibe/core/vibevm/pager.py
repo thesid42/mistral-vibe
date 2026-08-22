@@ -37,7 +37,6 @@ _PER_MESSAGE_OVERHEAD = 8
 _SUMMARY_MAX_TOKENS = 30  # ~120 chars via truncate_middle_to_tokens's 4 bytes/token
 _STALE_TEXT_MAX_TOKENS = 4000
 _DEFAULT_IMPORTANCE = 0.5
-_PROTECT_LAST_TOOLS = 3  # positional fallback: never evict the newest N tool results
 _IMPORTANCE_WEIGHTS: dict[str, float] = {
     "read_file": 0.7,
     "edit": 0.7,
@@ -132,10 +131,13 @@ def _score(page: ContextPage, max_seq: int) -> float:
     return 0.45 * recency + 0.25 * frequency + 0.30 * page.importance
 
 
-def _last_tool_call_ids(messages: Sequence[LLMMessage], count: int) -> set[str]:
-    """The tool_call_ids of the last ``count`` tool-role messages, by view position."""
-    ids = [m.tool_call_id for m in messages if m.role == Role.tool and m.tool_call_id]
-    return set(ids[-count:]) if count > 0 else set()
+def _current_round_start(messages: Sequence[LLMMessage]) -> int:
+    """Index of the most recent real (non-injected) user message, else 0."""
+    for index in range(len(messages) - 1, -1, -1):
+        message = messages[index]
+        if message.role == Role.user and not message.injected:
+            return index
+    return 0
 
 
 def _tier1_candidates(
@@ -150,20 +152,20 @@ def _tier1_candidates(
 
 
 def _tier2_candidates(
-    pages_by_tcid: dict[str, ContextPage], evicted: set[str], protected_tcids: set[str]
+    pages_by_tcid: dict[str, ContextPage], evicted: set[str], current_round_start: int
 ) -> list[ContextPage]:
     """Positional fallback for when round protection leaves nothing evictable.
 
-    HOT, unevicted, and not one of the last ``_PROTECT_LAST_TOOLS`` tool
-    messages by view position — so a single huge turn (one round, many big
-    tool results) can still shed content once truly over the hard budget.
+    HOT, unevicted, and created before the current round started: we never
+    steal frames from the instruction currently executing, so a page can only
+    be evicted here once the round that created it is no longer the newest.
     """
     return [
         p
         for p in pages_by_tcid.values()
         if p.state == PageState.HOT
         and p.id not in evicted
-        and p.tool_call_id not in protected_tcids
+        and p.created_seq < current_round_start
     ]
 
 
@@ -387,7 +389,7 @@ class VibeVM:
 
         target = budget * cfg.evict_target_ratio
         boundary = _protected_boundary_index(messages, cfg.protect_recent_turns)
-        protected_recent_tools = _last_tool_call_ids(messages, _PROTECT_LAST_TOOLS)
+        current_round_start = _current_round_start(messages)
         max_seq = max((p.created_seq for p in pages_by_tcid.values()), default=0) or 1
         evicted: set[str] = set()
 
@@ -397,7 +399,7 @@ class VibeVM:
                 if estimate <= budget:
                     return
                 candidates = _tier2_candidates(
-                    pages_by_tcid, evicted, protected_recent_tools
+                    pages_by_tcid, evicted, current_round_start
                 )
                 if not candidates:
                     return

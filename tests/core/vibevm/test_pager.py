@@ -328,12 +328,12 @@ def test_recall_miss_bumps_misses_stat(config_dir: Path) -> None:
     assert vm.snapshot().stats.misses == 1
 
 
-def test_single_turn_overflow_evicts_via_tier2_keeping_last_three_tools(
-    config_dir: Path,
-) -> None:
-    # One real user message means every page's created_seq sits at/after the
-    # round boundary: tier 1 (round-based protection) is always empty here, so
-    # eviction must fall through to the positional tier-2 fallback.
+def test_single_turn_overflow_never_evicts_current_round(config_dir: Path) -> None:
+    # One real user message means every page's created_seq sits at/after
+    # current_round_start: tier 1 (round-based) and tier 2 (positional
+    # fallback) both refuse to touch it. Mid-turn overshoot is accepted by
+    # design -- the same stance built-in compaction takes, since it cannot
+    # shrink the current round either.
     cfg = _config(
         min_page_tokens=1,
         protect_recent_turns=1,
@@ -346,15 +346,85 @@ def test_single_turn_overflow_evicts_via_tier2_keeping_last_three_tools(
         messages.append(_assistant_call(f"call-{i}", "bash"))
         messages.append(_tool_result(f"call-{i}", "bash", f"{i}" * 1500))
 
-    out = vm.apply(messages)
+    out = vm.apply(messages)  # never raises despite a budget it cannot meet
 
     by_tcid = {m.tool_call_id: m for m in out if m.role == Role.tool}
-    assert by_tcid["call-0"].content.startswith(STUB_PREFIX)
-    assert by_tcid["call-1"].content.startswith(STUB_PREFIX)
-    # The last 3 tool messages by view position are protected from tier 2.
-    assert by_tcid["call-2"].content == "2" * 1500
-    assert by_tcid["call-3"].content == "3" * 1500
-    assert by_tcid["call-4"].content == "4" * 1500
+    for i in range(5):
+        assert by_tcid[f"call-{i}"].content == f"{i}" * 1500  # nothing evicted
+    assert vm.snapshot().stats.evictions == 0
+
+
+def test_second_round_evicts_first_rounds_pages_down_to_target(
+    config_dir: Path,
+) -> None:
+    # protect_recent_turns=2 with only two rounds on the table means tier 1's
+    # boundary sits at index 0 either way (it is "protecting" both rounds at
+    # once), so tier 1 alone never finds anything here -- this exercises tier
+    # 2's positional-by-round fallback specifically.
+    cfg = _config(
+        min_page_tokens=1,
+        protect_recent_turns=2,
+        context_budget=1000,
+        evict_target_ratio=0.5,
+    )
+    vm = VibeVM(session_id="tier2-2", config_getter=lambda: cfg)
+    round_one = [
+        _user("round one"),
+        _assistant_call("call-0", "bash"),
+        _tool_result("call-0", "bash", "0" * 4000),
+    ]
+    vm.apply(round_one)
+    assert vm.snapshot().stats.evictions == 0  # single round: still current
+
+    round_two = [
+        *round_one,
+        _user("round two"),
+        _assistant_call("call-1", "bash"),
+        _tool_result("call-1", "bash", "1" * 400),
+    ]
+
+    out = vm.apply(round_two)
+
+    by_tcid = {m.tool_call_id: m for m in out if m.role == Role.tool}
+    assert by_tcid["call-0"].content.startswith(STUB_PREFIX)  # first round: aged out
+    assert by_tcid["call-1"].content == "1" * 400  # current round: stays
+
+    target = cfg.vibevm.context_budget * cfg.vibevm.evict_target_ratio
+    assert _estimate_tokens(out) <= target
+
+
+def test_recalled_page_in_current_round_survives_that_rounds_applies(
+    config_dir: Path,
+) -> None:
+    # A recall_context tool result is registered like any other page; it must
+    # get the same current-round immunity so the model never has to recall
+    # the same content twice within one turn.
+    cfg = _config(
+        min_page_tokens=1,
+        protect_recent_turns=2,
+        context_budget=50,
+        evict_target_ratio=0.5,
+    )
+    vm = VibeVM(session_id="tier2-3", config_getter=lambda: cfg)
+    round_one = [
+        _user("investigate the bug"),
+        _assistant_call("call-old", "read_file"),
+        _tool_result("call-old", "read_file", "o" * 2000),
+    ]
+    vm.apply(round_one)
+
+    round_two = [
+        *round_one,
+        _user("what changed recently?"),
+        _assistant_call("call-recall", "recall_context"),
+        _tool_result("call-recall", "recall_context", "r" * 2000),
+    ]
+
+    out = vm.apply(round_two)  # tiny budget: would love to evict everything
+
+    by_tcid = {m.tool_call_id: m for m in out if m.role == Role.tool}
+    assert by_tcid["call-old"].content.startswith(STUB_PREFIX)  # prior round: evicted
+    assert by_tcid["call-recall"].content == "r" * 2000  # current round: survives
 
 
 def test_rebind_same_session_id_is_a_no_op(config_dir: Path) -> None:

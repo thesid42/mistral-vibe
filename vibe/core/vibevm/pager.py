@@ -46,7 +46,9 @@ _IMPORTANCE_WEIGHTS: dict[str, float] = {
     "bash": 0.55,
     "web_fetch": 0.35,
     "web_search": 0.35,
-    "recall_context": 0.4,
+    # Recalled content is the model's explicitly demanded working set; evicting
+    # it again invites a recall/evict thrash loop, so it goes last.
+    "recall_context": 0.85,
 }
 
 

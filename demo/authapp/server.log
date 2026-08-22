@@ -1,0 +1,362 @@
+2026-08-21T09:00:03.591Z INFO  authsvc.http 10.4.5.156 "POST /api/login" status=200 user=user-013 took=61ms bytes=1365
+2026-08-21T09:00:04.875Z INFO  authsvc.http 10.4.6.22 "POST /api/login" status=200 user=user-015 took=119ms bytes=1674
+2026-08-21T09:00:06.379Z INFO  authsvc.http 10.4.0.9 "POST /health" status=200 user=user-023 took=177ms bytes=472
+2026-08-21T09:00:08.546Z INFO  authsvc.http 10.4.9.110 "POST /api/me" status=200 user=user-016 took=166ms bytes=1079
+2026-08-21T09:00:11.863Z DEBUG authsvc.token issue user=user-004 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=11
+2026-08-21T09:00:14.067Z DEBUG authsvc.token issue user=user-014 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=0
+2026-08-21T09:00:16.671Z INFO  authsvc.http 10.4.3.116 "POST /health" status=200 user=user-032 took=70ms bytes=751
+2026-08-21T09:00:18.762Z DEBUG authsvc.session touch user=user-036 sessions_active=30 idle_reaped=3 timeout_min=30
+2026-08-21T09:00:21.224Z INFO  authsvc.http 10.4.6.89 "POST /api/me" status=200 user=user-009 took=15ms bytes=629
+2026-08-21T09:00:23.642Z INFO  authsvc.http 10.4.7.139 "POST /health" status=200 user=user-011 took=19ms bytes=1756
+2026-08-21T09:00:27.610Z INFO  authsvc.audit event=logout user=user-030 reason=user_request session_age_s=107
+2026-08-21T09:00:28.698Z DEBUG authsvc.session touch user=user-035 sessions_active=24 idle_reaped=0 timeout_min=30
+2026-08-21T09:00:31.445Z INFO  authsvc.audit event=logout user=user-011 reason=user_request session_age_s=3007
+2026-08-21T09:00:34.995Z INFO  authsvc.http 10.4.0.188 "POST /api/refresh" status=200 user=user-033 took=30ms bytes=1402
+2026-08-21T09:00:36.156Z INFO  authsvc.http 10.4.0.188 "POST /api/refresh" status=401 user=user-024 took=138ms bytes=1507
+2026-08-21T09:00:40.019Z DEBUG authsvc.token issue user=user-008 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-1
+2026-08-21T09:00:42.059Z WARN  authsvc.http 10.4.8.77 rate-limit near threshold user=user-016 window=60s count=51/60
+2026-08-21T09:00:46.835Z DEBUG authsvc.session touch user=user-005 sessions_active=11 idle_reaped=3 timeout_min=30
+2026-08-21T09:00:48.271Z INFO  authsvc.http 10.4.6.22 "POST /api/sessions" status=200 user=user-034 took=57ms bytes=2388
+2026-08-21T09:00:50.730Z DEBUG authsvc.session touch user=user-020 sessions_active=31 idle_reaped=3 timeout_min=30
+2026-08-21T09:00:51.253Z INFO  authsvc.http 10.4.3.37 "POST /api/logout" status=200 user=user-015 took=144ms bytes=1122
+2026-08-21T09:00:53.007Z INFO  authsvc.http 10.4.5.156 "POST /health" status=200 user=user-005 took=20ms bytes=308
+2026-08-21T09:00:56.072Z DEBUG authsvc.session touch user=user-033 sessions_active=16 idle_reaped=1 timeout_min=30
+2026-08-21T09:01:00.248Z INFO  authsvc.http 10.4.7.139 "POST /api/me" status=200 user=user-031 took=27ms bytes=1945
+2026-08-21T09:01:03.433Z INFO  authsvc.http 10.4.0.196 "POST /health" status=200 user=user-027 took=170ms bytes=583
+2026-08-21T09:01:04.412Z INFO  authsvc.http 10.4.7.139 "POST /api/login" status=200 user=user-022 took=51ms bytes=2376
+2026-08-21T09:01:08.143Z INFO  authsvc.http 10.4.9.110 "POST /api/logout" status=200 user=user-028 took=22ms bytes=1995
+2026-08-21T09:01:09.051Z INFO  authsvc.audit event=logout user=user-035 reason=user_request session_age_s=3146
+2026-08-21T09:01:11.170Z INFO  authsvc.http 10.4.2.180 "POST /api/me" status=200 user=user-027 took=105ms bytes=420
+2026-08-21T09:01:13.388Z WARN  authsvc.http 10.4.3.116 rate-limit near threshold user=user-001 window=60s count=57/60
+2026-08-21T09:01:16.433Z INFO  authsvc.http 10.4.1.93 "POST /health" status=200 user=user-036 took=51ms bytes=1395
+2026-08-21T09:01:18.991Z INFO  authsvc.http 10.4.3.247 "POST /health" status=200 user=user-004 took=83ms bytes=414
+2026-08-21T09:01:19.598Z INFO  authsvc.http 10.4.6.89 "POST /api/sessions" status=200 user=user-031 took=133ms bytes=508
+2026-08-21T09:01:21.070Z DEBUG authsvc.token issue user=user-039 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=11
+2026-08-21T09:01:22.964Z INFO  authsvc.http 10.4.1.57 "POST /api/sessions" status=200 user=user-037 took=161ms bytes=515
+2026-08-21T09:01:26.673Z INFO  authsvc.http 10.4.3.247 "POST /api/sessions" status=200 user=user-038 took=69ms bytes=1016
+2026-08-21T09:01:29.244Z DEBUG authsvc.session touch user=user-017 sessions_active=22 idle_reaped=3 timeout_min=30
+2026-08-21T09:01:32.951Z DEBUG authsvc.session touch user=user-005 sessions_active=39 idle_reaped=0 timeout_min=30
+2026-08-21T09:01:33.550Z INFO  authsvc.http 10.4.6.89 "POST /api/logout" status=200 user=user-014 took=92ms bytes=461
+2026-08-21T09:01:35.378Z DEBUG authsvc.token issue user=user-019 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-2
+2026-08-21T09:01:36.683Z INFO  authsvc.http 10.4.9.8 "POST /health" status=200 user=user-036 took=37ms bytes=1263
+2026-08-21T09:01:37.911Z INFO  authsvc.http 10.4.4.208 "POST /api/sessions" status=200 user=user-007 took=75ms bytes=1042
+2026-08-21T09:01:40.208Z INFO  authsvc.http 10.4.6.89 "POST /api/me" status=200 user=user-017 took=16ms bytes=558
+2026-08-21T09:01:44.849Z INFO  authsvc.http 10.4.4.64 "POST /api/login" status=200 user=user-018 took=36ms bytes=1252
+2026-08-21T09:01:46.759Z INFO  authsvc.http 10.4.4.41 "POST /health" status=200 user=user-029 took=5ms bytes=638
+2026-08-21T09:01:47.967Z DEBUG authsvc.token issue user=user-010 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=34
+2026-08-21T09:01:49.440Z INFO  authsvc.http 10.4.4.64 "POST /api/logout" status=200 user=user-009 took=13ms bytes=1645
+2026-08-21T09:01:51.698Z INFO  authsvc.http 10.4.1.93 "POST /api/login" status=200 user=user-016 took=146ms bytes=1844
+2026-08-21T09:01:53.947Z INFO  authsvc.audit event=logout user=user-016 reason=user_request session_age_s=3380
+2026-08-21T09:01:55.902Z DEBUG authsvc.session touch user=user-027 sessions_active=24 idle_reaped=3 timeout_min=30
+2026-08-21T09:01:57.273Z INFO  authsvc.http 10.4.7.139 "POST /health" status=200 user=user-011 took=12ms bytes=2107
+2026-08-21T09:01:59.204Z DEBUG authsvc.token issue user=user-030 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-11
+2026-08-21T09:02:01.024Z INFO  authsvc.http 10.4.3.116 "POST /api/logout" status=200 user=user-013 took=20ms bytes=1323
+2026-08-21T09:02:04.656Z INFO  authsvc.audit event=logout user=user-033 reason=user_request session_age_s=2256
+2026-08-21T09:02:07.961Z INFO  authsvc.http 10.4.1.175 "POST /api/logout" status=200 user=user-002 took=70ms bytes=336
+2026-08-21T09:02:08.610Z DEBUG authsvc.token issue user=user-028 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=15
+2026-08-21T09:02:09.394Z INFO  authsvc.http 10.4.0.9 "POST /api/logout" status=200 user=user-037 took=114ms bytes=186
+2026-08-21T09:02:11.372Z WARN  authsvc.http 10.4.3.37 rate-limit near threshold user=user-028 window=60s count=59/60
+2026-08-21T09:02:14.679Z INFO  authsvc.http 10.4.4.208 "POST /api/logout" status=200 user=user-008 took=173ms bytes=1852
+2026-08-21T09:02:17.412Z INFO  authsvc.http 10.4.4.41 "POST /api/refresh" status=401 user=user-019 took=173ms bytes=892
+2026-08-21T09:02:20.415Z INFO  authsvc.http 10.4.1.238 "POST /api/login" status=200 user=user-036 took=56ms bytes=1940
+2026-08-21T09:02:23.476Z INFO  authsvc.http 10.4.0.196 "POST /health" status=200 user=user-029 took=124ms bytes=875
+2026-08-21T09:02:24.290Z INFO  authsvc.http 10.4.1.93 "POST /health" status=200 user=user-033 took=26ms bytes=1142
+2026-08-21T09:02:27.230Z INFO  authsvc.http 10.4.8.24 "POST /api/login" status=200 user=user-013 took=124ms bytes=478
+2026-08-21T09:02:31.424Z DEBUG authsvc.session touch user=user-037 sessions_active=34 idle_reaped=3 timeout_min=30
+2026-08-21T09:02:33.151Z DEBUG authsvc.session touch user=user-001 sessions_active=17 idle_reaped=1 timeout_min=30
+2026-08-21T09:02:37.051Z INFO  authsvc.http 10.4.1.57 "POST /api/login" status=200 user=user-036 took=121ms bytes=2355
+2026-08-21T09:02:40.972Z WARN  authsvc.http 10.4.5.28 rate-limit near threshold user=user-029 window=60s count=56/60
+2026-08-21T09:02:44.918Z INFO  authsvc.http 10.4.4.208 "POST /api/me" status=200 user=user-011 took=66ms bytes=1315
+2026-08-21T09:02:48.641Z INFO  authsvc.http 10.4.3.131 "POST /api/me" status=200 user=user-016 took=76ms bytes=1140
+2026-08-21T09:02:51.343Z INFO  authsvc.http 10.4.8.77 "POST /api/sessions" status=200 user=user-021 took=41ms bytes=1127
+2026-08-21T09:02:55.710Z INFO  authsvc.http 10.4.5.156 "POST /api/refresh" status=200 user=user-010 took=107ms bytes=2088
+2026-08-21T09:02:59.063Z INFO  authsvc.http 10.4.1.238 "POST /api/me" status=200 user=user-014 took=152ms bytes=260
+2026-08-21T09:03:03.488Z DEBUG authsvc.session touch user=user-001 sessions_active=29 idle_reaped=1 timeout_min=30
+2026-08-21T09:03:07.224Z INFO  authsvc.http 10.4.9.73 "POST /api/me" status=200 user=user-018 took=89ms bytes=1836
+2026-08-21T09:03:09.860Z INFO  authsvc.audit event=logout user=user-030 reason=user_request session_age_s=2247
+2026-08-21T09:03:10.928Z DEBUG authsvc.session touch user=user-026 sessions_active=8 idle_reaped=3 timeout_min=30
+2026-08-21T09:03:12.887Z INFO  authsvc.http 10.4.9.110 "POST /api/login" status=200 user=user-030 took=86ms bytes=1046
+2026-08-21T09:03:16.334Z INFO  authsvc.http 10.4.0.188 "POST /api/me" status=200 user=user-022 took=110ms bytes=1213
+2026-08-21T09:03:17.481Z INFO  authsvc.http 10.4.4.208 "POST /api/sessions" status=200 user=user-002 took=92ms bytes=1098
+2026-08-21T09:03:18.799Z WARN  authsvc.http 10.4.0.188 rate-limit near threshold user=user-003 window=60s count=53/60
+2026-08-21T09:03:19.636Z INFO  authsvc.http 10.4.1.57 "POST /api/refresh" status=200 user=user-010 took=32ms bytes=1072
+2026-08-21T09:03:23.716Z INFO  authsvc.http 10.4.0.188 "POST /api/logout" status=200 user=user-017 took=158ms bytes=649
+2026-08-21T09:03:25.987Z INFO  authsvc.http 10.4.1.175 "POST /api/sessions" status=200 user=user-020 took=82ms bytes=1717
+2026-08-21T09:03:29.964Z DEBUG authsvc.session touch user=user-013 sessions_active=18 idle_reaped=0 timeout_min=30
+2026-08-21T09:03:32.870Z DEBUG authsvc.token issue user=user-039 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=32
+2026-08-21T09:03:33.355Z INFO  authsvc.http 10.4.9.73 "POST /health" status=200 user=user-035 took=132ms bytes=1577
+2026-08-21T09:03:34.869Z INFO  authsvc.http 10.4.1.238 "POST /api/me" status=200 user=user-027 took=95ms bytes=2063
+2026-08-21T09:03:36.445Z INFO  authsvc.audit event=logout user=user-012 reason=user_request session_age_s=1166
+2026-08-21T09:03:40.476Z INFO  authsvc.http 10.4.1.238 "POST /health" status=200 user=user-028 took=85ms bytes=1185
+2026-08-21T09:03:41.285Z INFO  authsvc.http 10.4.1.57 "POST /api/me" status=200 user=user-029 took=174ms bytes=1732
+2026-08-21T09:03:44.029Z INFO  authsvc.http 10.4.6.22 "POST /api/logout" status=200 user=user-032 took=57ms bytes=1633
+2026-08-21T09:03:47.348Z DEBUG authsvc.session touch user=user-018 sessions_active=20 idle_reaped=0 timeout_min=30
+2026-08-21T09:03:49.087Z INFO  authsvc.http 10.4.4.208 "POST /api/me" status=200 user=user-016 took=64ms bytes=2130
+2026-08-21T09:03:53.458Z INFO  authsvc.http 10.4.3.37 "POST /api/logout" status=200 user=user-002 took=180ms bytes=1176
+2026-08-21T09:03:56.679Z INFO  authsvc.http 10.4.8.109 "POST /api/me" status=200 user=user-038 took=91ms bytes=1922
+2026-08-21T09:03:59.360Z INFO  authsvc.http 10.4.3.131 "POST /api/logout" status=200 user=user-030 took=33ms bytes=968
+2026-08-21T09:04:02.122Z INFO  authsvc.http 10.4.0.188 "POST /health" status=200 user=user-035 took=58ms bytes=2163
+2026-08-21T09:04:05.741Z INFO  authsvc.http 10.4.0.188 "POST /api/sessions" status=200 user=user-038 took=28ms bytes=975
+2026-08-21T09:04:08.232Z INFO  authsvc.http 10.4.9.110 "POST /api/logout" status=200 user=user-024 took=139ms bytes=698
+2026-08-21T09:04:11.046Z DEBUG authsvc.session touch user=user-004 sessions_active=11 idle_reaped=3 timeout_min=30
+2026-08-21T09:04:12.893Z INFO  authsvc.http 10.4.3.247 "POST /api/logout" status=200 user=user-001 took=115ms bytes=1575
+2026-08-21T09:04:14.988Z INFO  authsvc.http 10.4.3.131 "POST /api/me" status=200 user=user-004 took=19ms bytes=1821
+2026-08-21T09:04:18.075Z INFO  authsvc.http 10.4.1.99 "POST /health" status=200 user=user-037 took=41ms bytes=1424
+2026-08-21T09:04:19.254Z INFO  authsvc.http 10.4.4.41 "POST /api/me" status=200 user=user-008 took=161ms bytes=1104
+2026-08-21T09:04:23.461Z INFO  authsvc.audit event=logout user=user-029 reason=user_request session_age_s=1310
+2026-08-21T09:04:24.624Z DEBUG authsvc.session touch user=user-007 sessions_active=19 idle_reaped=0 timeout_min=30
+2026-08-21T09:04:26.245Z INFO  authsvc.http 10.4.4.41 "POST /api/login" status=200 user=user-012 took=107ms bytes=2025
+2026-08-21T09:04:30.298Z DEBUG authsvc.session touch user=user-003 sessions_active=32 idle_reaped=0 timeout_min=30
+2026-08-21T09:04:32.946Z INFO  authsvc.http 10.4.7.139 "POST /health" status=200 user=user-017 took=53ms bytes=1921
+2026-08-21T09:04:33.557Z WARN  authsvc.http 10.4.1.99 rate-limit near threshold user=user-015 window=60s count=52/60
+2026-08-21T09:04:34.061Z INFO  authsvc.http 10.4.7.139 "POST /api/logout" status=200 user=user-011 took=148ms bytes=1362
+2026-08-21T09:04:38.127Z DEBUG authsvc.session touch user=user-030 sessions_active=20 idle_reaped=3 timeout_min=30
+2026-08-21T09:04:42.082Z DEBUG authsvc.session touch user=user-039 sessions_active=41 idle_reaped=2 timeout_min=30
+2026-08-21T09:04:43.093Z INFO  authsvc.http 10.4.1.93 "POST /api/sessions" status=200 user=user-015 took=8ms bytes=1283
+2026-08-21T09:04:44.781Z DEBUG authsvc.session touch user=user-012 sessions_active=20 idle_reaped=1 timeout_min=30
+2026-08-21T09:04:48.650Z INFO  authsvc.http 10.4.3.37 "POST /api/me" status=200 user=user-032 took=88ms bytes=1495
+2026-08-21T09:04:49.878Z DEBUG authsvc.session touch user=user-011 sessions_active=21 idle_reaped=3 timeout_min=30
+2026-08-21T09:04:50.465Z INFO  authsvc.http 10.4.8.52 "POST /api/logout" status=200 user=user-006 took=106ms bytes=2287
+2026-08-21T09:04:51.673Z INFO  authsvc.http 10.4.0.196 "POST /api/me" status=200 user=user-035 took=135ms bytes=1661
+2026-08-21T09:04:55.640Z ERROR gunicorn.worker pid=4117 worker timeout, killing worker
+2026-08-21T09:04:55.640Z ERROR authsvc.db conn=pg-7 query failed after 30000ms: OperationalError errno=104 connection reset by peer (host=db-primary.internal port=5432 user=authsvc)
+2026-08-21T09:04:55.640Z WARN  authsvc.db conn=pg-7 retrying with backoff attempt=1/5 delay=200ms
+2026-08-21T09:04:57.949Z INFO  authsvc.http 10.4.0.196 "POST /health" status=200 user=user-019 took=10ms bytes=1160
+2026-08-21T09:04:59.318Z INFO  authsvc.http 10.4.1.8 "POST /api/sessions" status=200 user=user-036 took=60ms bytes=644
+2026-08-21T09:05:03.969Z INFO  authsvc.http 10.4.1.99 "POST /api/refresh" status=200 user=user-008 took=77ms bytes=1299
+2026-08-21T09:05:07.854Z INFO  authsvc.http 10.4.2.180 "POST /api/refresh" status=200 user=user-031 took=40ms bytes=2261
+2026-08-21T09:05:09.884Z INFO  authsvc.http 10.4.3.131 "POST /api/me" status=200 user=user-005 took=132ms bytes=1274
+2026-08-21T09:05:10.289Z INFO  authsvc.http 10.4.1.238 "POST /api/sessions" status=200 user=user-020 took=171ms bytes=2185
+2026-08-21T09:05:12.457Z INFO  authsvc.http 10.4.2.180 "POST /api/logout" status=200 user=user-035 took=142ms bytes=1725
+2026-08-21T09:05:16.955Z INFO  authsvc.audit event=logout user=user-021 reason=user_request session_age_s=1038
+2026-08-21T09:05:20.239Z DEBUG authsvc.session touch user=user-027 sessions_active=27 idle_reaped=3 timeout_min=30
+2026-08-21T09:05:22.507Z INFO  authsvc.audit event=logout user=user-003 reason=user_request session_age_s=1419
+2026-08-21T09:05:23.895Z WARN  authsvc.http 10.4.1.175 rate-limit near threshold user=user-029 window=60s count=50/60
+2026-08-21T09:05:25.419Z DEBUG authsvc.token issue user=user-010 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-7
+2026-08-21T09:05:28.638Z DEBUG authsvc.token issue user=user-026 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=28
+2026-08-21T09:05:32.977Z WARN  authsvc.http 10.4.1.99 rate-limit near threshold user=user-021 window=60s count=57/60
+2026-08-21T09:05:33.632Z DEBUG authsvc.session touch user=user-005 sessions_active=21 idle_reaped=1 timeout_min=30
+2026-08-21T09:05:34.444Z DEBUG authsvc.session touch user=user-007 sessions_active=9 idle_reaped=3 timeout_min=30
+2026-08-21T09:05:36.710Z INFO  authsvc.http 10.4.8.77 "POST /api/login" status=200 user=user-020 took=17ms bytes=1381
+2026-08-21T09:05:39.383Z INFO  authsvc.http 10.4.8.24 "POST /api/refresh" status=200 user=user-028 took=147ms bytes=917
+2026-08-21T09:05:41.179Z INFO  authsvc.http 10.4.5.28 "POST /api/me" status=200 user=user-006 took=64ms bytes=2218
+2026-08-21T09:05:43.237Z INFO  authsvc.http 10.4.1.99 "POST /api/logout" status=200 user=user-030 took=173ms bytes=218
+2026-08-21T09:05:47.922Z INFO  authsvc.http 10.4.1.93 "POST /api/sessions" status=200 user=user-019 took=116ms bytes=1595
+2026-08-21T09:05:50.654Z INFO  authsvc.http 10.4.5.156 "POST /api/logout" status=200 user=user-028 took=80ms bytes=995
+2026-08-21T09:05:54.873Z INFO  authsvc.http 10.4.1.175 "POST /api/refresh" status=200 user=user-031 took=94ms bytes=1389
+2026-08-21T09:05:55.849Z INFO  authsvc.http 10.4.3.131 "POST /api/login" status=200 user=user-026 took=178ms bytes=380
+2026-08-21T09:05:59.852Z INFO  authsvc.http 10.4.0.188 "POST /api/refresh" status=200 user=user-019 took=93ms bytes=958
+2026-08-21T09:06:02.694Z WARN  authsvc.http 10.4.1.99 rate-limit near threshold user=user-009 window=60s count=50/60
+2026-08-21T09:06:05.807Z INFO  authsvc.http 10.4.4.64 "POST /api/sessions" status=200 user=user-029 took=36ms bytes=549
+2026-08-21T09:06:08.334Z INFO  authsvc.http 10.4.9.110 "POST /api/refresh" status=200 user=user-027 took=141ms bytes=1678
+2026-08-21T09:06:11.850Z INFO  authsvc.audit event=logout user=user-011 reason=user_request session_age_s=1268
+2026-08-21T09:06:14.823Z INFO  authsvc.http 10.4.0.196 "POST /api/login" status=200 user=user-008 took=60ms bytes=1807
+2026-08-21T09:06:17.092Z INFO  authsvc.http 10.4.1.8 "POST /api/logout" status=200 user=user-026 took=119ms bytes=1689
+2026-08-21T09:06:20.598Z WARN  authsvc.http 10.4.1.238 rate-limit near threshold user=user-025 window=60s count=51/60
+2026-08-21T09:06:22.482Z INFO  authsvc.http 10.4.5.28 "POST /api/sessions" status=200 user=user-002 took=159ms bytes=1086
+2026-08-21T09:06:23.650Z INFO  authsvc.http 10.4.9.228 "POST /health" status=200 user=user-030 took=107ms bytes=657
+2026-08-21T09:06:25.046Z INFO  authsvc.http 10.4.9.8 "POST /api/me" status=200 user=user-003 took=63ms bytes=2381
+2026-08-21T09:06:27.397Z WARN  authsvc.http 10.4.8.109 rate-limit near threshold user=user-030 window=60s count=58/60
+2026-08-21T09:06:31.601Z DEBUG authsvc.session touch user=user-010 sessions_active=34 idle_reaped=3 timeout_min=30
+2026-08-21T09:06:34.033Z INFO  authsvc.http 10.4.0.9 "POST /api/me" status=200 user=user-024 took=63ms bytes=1665
+2026-08-21T09:06:35.702Z INFO  authsvc.http 10.4.4.41 "POST /health" status=200 user=user-024 took=104ms bytes=1310
+2026-08-21T09:06:37.991Z INFO  authsvc.http 10.4.6.22 "POST /api/me" status=200 user=user-008 took=57ms bytes=267
+2026-08-21T09:06:38.805Z DEBUG authsvc.token issue user=user-022 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-14
+2026-08-21T09:06:39.849Z INFO  authsvc.http 10.4.0.9 "POST /api/sessions" status=200 user=user-036 took=62ms bytes=1525
+2026-08-21T09:06:41.807Z DEBUG authsvc.token issue user=user-039 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-22
+2026-08-21T09:06:43.553Z INFO  authsvc.http 10.4.7.139 "POST /api/refresh" status=200 user=user-017 took=9ms bytes=1647
+2026-08-21T09:06:45.602Z INFO  authsvc.http 10.4.1.8 "POST /api/refresh" status=200 user=user-021 took=35ms bytes=2334
+2026-08-21T09:06:46.763Z DEBUG authsvc.session touch user=user-005 sessions_active=35 idle_reaped=0 timeout_min=30
+2026-08-21T09:06:50.515Z DEBUG authsvc.session touch user=user-015 sessions_active=36 idle_reaped=2 timeout_min=30
+2026-08-21T09:06:54.658Z DEBUG authsvc.token issue user=user-002 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=14
+2026-08-21T09:06:55.502Z INFO  authsvc.http 10.4.3.37 "POST /api/login" status=200 user=user-029 took=40ms bytes=449
+2026-08-21T09:06:57.281Z INFO  authsvc.http 10.4.4.41 "POST /health" status=200 user=user-038 took=155ms bytes=2353
+2026-08-21T09:07:00.464Z INFO  authsvc.http 10.4.5.28 "POST /api/me" status=200 user=user-033 took=32ms bytes=1060
+2026-08-21T09:07:04.462Z DEBUG authsvc.token issue user=user-015 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=11
+2026-08-21T09:07:08.747Z INFO  authsvc.http 10.4.8.52 "POST /api/me" status=200 user=user-007 took=68ms bytes=1713
+2026-08-21T09:07:10.703Z DEBUG authsvc.token issue user=user-031 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-29
+2026-08-21T09:07:14.098Z INFO  authsvc.http 10.4.7.139 "POST /api/refresh" status=401 user=user-024 took=153ms bytes=1530
+2026-08-21T09:07:15.420Z WARN  authsvc.http 10.4.6.22 rate-limit near threshold user=user-023 window=60s count=56/60
+2026-08-21T09:07:16.991Z INFO  authsvc.http 10.4.5.28 "POST /api/logout" status=200 user=user-019 took=150ms bytes=2258
+2026-08-21T09:07:18.158Z INFO  authsvc.http 10.4.1.57 "POST /api/login" status=200 user=user-031 took=145ms bytes=1685
+2026-08-21T09:07:19.780Z DEBUG authsvc.token issue user=user-018 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=31
+2026-08-21T09:07:20.623Z INFO  authsvc.http 10.4.1.8 "POST /api/refresh" status=401 user=user-018 took=82ms bytes=1617
+2026-08-21T09:07:21.185Z INFO  authsvc.http 10.4.3.247 "POST /health" status=200 user=user-010 took=39ms bytes=305
+2026-08-21T09:07:22.764Z INFO  authsvc.http 10.4.0.9 "POST /api/me" status=200 user=user-034 took=90ms bytes=824
+2026-08-21T09:07:25.319Z INFO  authsvc.http 10.4.0.188 "POST /api/sessions" status=200 user=user-021 took=16ms bytes=817
+2026-08-21T09:07:27.772Z INFO  authsvc.http 10.4.1.93 "POST /api/login" status=200 user=user-004 took=172ms bytes=1916
+2026-08-21T09:07:31.621Z INFO  authsvc.http 10.4.9.73 "POST /api/logout" status=200 user=user-029 took=134ms bytes=646
+2026-08-21T09:07:34.440Z DEBUG authsvc.session touch user=user-008 sessions_active=34 idle_reaped=2 timeout_min=30
+2026-08-21T09:07:35.225Z INFO  authsvc.http 10.4.5.28 "POST /api/login" status=200 user=user-026 took=80ms bytes=1045
+2026-08-21T09:07:37.782Z INFO  authsvc.http 10.4.9.8 "POST /api/logout" status=200 user=user-017 took=130ms bytes=1943
+2026-08-21T09:07:39.132Z INFO  authsvc.http 10.4.4.41 "POST /health" status=200 user=user-025 took=146ms bytes=1630
+2026-08-21T09:07:40.406Z INFO  authsvc.http 10.4.9.73 "POST /api/login" status=200 user=user-003 took=22ms bytes=1462
+2026-08-21T09:07:44.587Z INFO  authsvc.http 10.4.5.156 "POST /health" status=200 user=user-026 took=32ms bytes=1839
+2026-08-21T09:07:45.989Z INFO  authsvc.http 10.4.9.110 "POST /api/sessions" status=200 user=user-021 took=179ms bytes=1662
+2026-08-21T09:07:46.447Z INFO  authsvc.http 10.4.1.57 "POST /api/me" status=200 user=user-007 took=137ms bytes=502
+2026-08-21T09:07:50.891Z INFO  authsvc.http 10.4.4.208 "POST /api/logout" status=200 user=user-020 took=46ms bytes=492
+2026-08-21T09:07:51.543Z INFO  authsvc.http 10.4.0.9 "POST /api/logout" status=200 user=user-033 took=168ms bytes=784
+2026-08-21T09:07:53.105Z INFO  authsvc.http 10.4.3.131 "POST /api/refresh" status=200 user=user-010 took=42ms bytes=488
+2026-08-21T09:07:55.974Z DEBUG authsvc.session touch user=user-032 sessions_active=31 idle_reaped=2 timeout_min=30
+2026-08-21T09:07:58.154Z INFO  authsvc.http 10.4.3.37 "POST /api/me" status=200 user=user-029 took=80ms bytes=1305
+2026-08-21T09:07:59.360Z INFO  authsvc.http 10.4.3.37 "POST /api/logout" status=200 user=user-033 took=12ms bytes=413
+2026-08-21T09:08:02.851Z DEBUG authsvc.token issue user=user-019 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-29
+2026-08-21T09:08:06.473Z WARN  authsvc.http 10.4.4.41 rate-limit near threshold user=user-038 window=60s count=57/60
+2026-08-21T09:08:08.329Z INFO  authsvc.http 10.4.2.180 "POST /api/sessions" status=200 user=user-039 took=18ms bytes=2025
+2026-08-21T09:08:09.830Z INFO  authsvc.http 10.4.5.156 "POST /api/login" status=200 user=user-022 took=47ms bytes=340
+2026-08-21T09:08:11.724Z INFO  authsvc.http 10.4.0.196 "POST /api/sessions" status=200 user=user-029 took=43ms bytes=1670
+2026-08-21T09:08:14.939Z DEBUG authsvc.session touch user=user-019 sessions_active=41 idle_reaped=0 timeout_min=30
+2026-08-21T09:08:17.067Z DEBUG authsvc.session touch user=user-022 sessions_active=21 idle_reaped=2 timeout_min=30
+2026-08-21T09:08:19.341Z INFO  authsvc.http 10.4.3.247 "POST /health" status=200 user=user-006 took=92ms bytes=1450
+2026-08-21T09:08:23.132Z INFO  authsvc.http 10.4.5.156 "POST /api/login" status=200 user=user-039 took=99ms bytes=1525
+2026-08-21T09:08:25.686Z DEBUG authsvc.session touch user=user-034 sessions_active=35 idle_reaped=2 timeout_min=30
+2026-08-21T09:08:26.371Z INFO  authsvc.http 10.4.9.110 "POST /api/refresh" status=200 user=user-020 took=127ms bytes=743
+2026-08-21T09:08:28.079Z INFO  authsvc.http 10.4.6.22 "POST /api/login" status=200 user=user-019 took=141ms bytes=2336
+2026-08-21T09:08:29.677Z INFO  authsvc.http 10.4.8.77 "POST /api/sessions" status=200 user=user-022 took=99ms bytes=811
+2026-08-21T09:08:31.185Z INFO  authsvc.http 10.4.4.208 "POST /api/me" status=200 user=user-011 took=96ms bytes=1152
+2026-08-21T09:08:35.625Z DEBUG authsvc.token issue user=user-019 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-11
+2026-08-21T09:08:37.316Z INFO  authsvc.http 10.4.8.77 "POST /api/refresh" status=401 user=user-031 took=149ms bytes=2071
+2026-08-21T09:08:40.796Z INFO  authsvc.http 10.4.6.89 "POST /api/sessions" status=200 user=user-025 took=44ms bytes=997
+2026-08-21T09:08:42.893Z INFO  authsvc.http 10.4.4.64 "POST /health" status=200 user=user-017 took=98ms bytes=600
+2026-08-21T09:08:43.291Z INFO  authsvc.http 10.4.0.188 "POST /api/refresh" status=200 user=user-006 took=134ms bytes=1971
+2026-08-21T09:08:44.969Z WARN  authsvc.http 10.4.1.238 rate-limit near threshold user=user-015 window=60s count=50/60
+2026-08-21T09:08:48.054Z INFO  authsvc.http 10.4.6.89 "POST /api/logout" status=200 user=user-026 took=23ms bytes=1715
+2026-08-21T09:08:50.028Z DEBUG authsvc.token issue user=user-021 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=2
+2026-08-21T09:08:52.140Z DEBUG authsvc.session touch user=user-003 sessions_active=11 idle_reaped=3 timeout_min=30
+2026-08-21T09:08:56.630Z INFO  authsvc.http 10.4.8.77 "POST /api/login" status=200 user=user-001 took=58ms bytes=792
+2026-08-21T09:09:00.113Z INFO  authsvc.http 10.4.1.57 "POST /api/logout" status=200 user=user-019 took=64ms bytes=1899
+2026-08-21T09:09:04.064Z INFO  authsvc.http 10.4.1.238 "POST /api/me" status=200 user=user-008 took=7ms bytes=2290
+2026-08-21T09:09:06.735Z INFO  authsvc.http 10.4.9.8 "POST /api/me" status=200 user=user-010 took=93ms bytes=1165
+2026-08-21T09:09:10.191Z INFO  authsvc.http 10.4.6.89 "POST /api/logout" status=200 user=user-006 took=137ms bytes=2258
+2026-08-21T09:09:11.399Z INFO  authsvc.http 10.4.4.64 "POST /health" status=200 user=user-031 took=98ms bytes=1218
+2026-08-21T09:09:12.365Z DEBUG authsvc.session touch user=user-005 sessions_active=9 idle_reaped=2 timeout_min=30
+2026-08-21T09:09:14.045Z DEBUG authsvc.token issue user=user-023 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-18
+2026-08-21T09:09:18.712Z DEBUG authsvc.token issue user=user-031 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-32
+2026-08-21T09:09:22.037Z DEBUG authsvc.token issue user=user-019 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-35
+2026-08-21T09:09:25.955Z INFO  authsvc.audit event=logout user=user-020 reason=user_request session_age_s=2284
+2026-08-21T09:09:29.259Z INFO  authsvc.http 10.4.0.188 "POST /health" status=200 user=user-003 took=94ms bytes=375
+2026-08-21T09:09:32.279Z INFO  authsvc.http 10.4.7.139 "POST /api/logout" status=200 user=user-008 took=105ms bytes=1981
+2026-08-21T09:09:36.347Z INFO  authsvc.http 10.4.2.180 "POST /health" status=200 user=user-012 took=135ms bytes=1272
+2026-08-21T09:09:37.744Z INFO  authsvc.http 10.4.3.37 "POST /api/me" status=200 user=user-028 took=49ms bytes=1383
+2026-08-21T09:09:40.105Z INFO  authsvc.http 10.4.8.52 "POST /health" status=200 user=user-006 took=117ms bytes=1925
+2026-08-21T09:09:42.706Z INFO  authsvc.http 10.4.8.109 "POST /api/me" status=200 user=user-029 took=93ms bytes=1961
+2026-08-21T09:09:45.654Z DEBUG authsvc.session touch user=user-004 sessions_active=26 idle_reaped=1 timeout_min=30
+2026-08-21T09:09:46.146Z INFO  authsvc.http 10.4.1.93 "POST /api/me" status=200 user=user-039 took=20ms bytes=1146
+2026-08-21T09:09:49.370Z INFO  authsvc.http 10.4.3.247 "POST /api/login" status=200 user=user-025 took=176ms bytes=2022
+2026-08-21T09:09:52.380Z INFO  authsvc.http 10.4.0.188 "POST /api/login" status=200 user=user-029 took=138ms bytes=1683
+2026-08-21T09:09:56.321Z INFO  authsvc.http 10.4.1.57 "POST /api/login" status=200 user=user-018 took=50ms bytes=2224
+2026-08-21T09:10:00.935Z DEBUG authsvc.session touch user=user-036 sessions_active=31 idle_reaped=1 timeout_min=30
+2026-08-21T09:10:03.710Z INFO  authsvc.http 10.4.0.9 "POST /api/login" status=200 user=user-032 took=21ms bytes=2031
+2026-08-21T09:10:05.920Z INFO  authsvc.audit event=logout user=user-029 reason=user_request session_age_s=1369
+2026-08-21T09:10:08.726Z INFO  authsvc.http 10.4.4.41 "POST /api/sessions" status=200 user=user-005 took=79ms bytes=825
+2026-08-21T09:10:10.812Z INFO  authsvc.http 10.4.6.89 "POST /api/refresh" status=200 user=user-024 took=54ms bytes=1149
+2026-08-21T09:10:14.026Z INFO  authsvc.http 10.4.4.41 "POST /api/sessions" status=200 user=user-024 took=144ms bytes=711
+2026-08-21T09:10:15.067Z DEBUG authsvc.session touch user=user-020 sessions_active=36 idle_reaped=3 timeout_min=30
+2026-08-21T09:10:19.843Z INFO  authsvc.audit event=logout user=user-037 reason=user_request session_age_s=2691
+2026-08-21T09:10:20.460Z INFO  authsvc.http 10.4.1.93 "POST /api/sessions" status=200 user=user-030 took=144ms bytes=925
+2026-08-21T09:10:22.443Z DEBUG authsvc.token issue user=user-033 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=26
+2026-08-21T09:10:24.311Z WARN  authsvc.http 10.4.9.110 rate-limit near threshold user=user-011 window=60s count=53/60
+2026-08-21T09:10:27.970Z DEBUG authsvc.token issue user=user-034 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-8
+2026-08-21T09:10:29.650Z DEBUG authsvc.session touch user=user-036 sessions_active=37 idle_reaped=0 timeout_min=30
+2026-08-21T09:10:31.606Z DEBUG authsvc.session touch user=user-038 sessions_active=41 idle_reaped=2 timeout_min=30
+2026-08-21T09:10:32.845Z WARN  authsvc.http 10.4.3.37 rate-limit near threshold user=user-002 window=60s count=59/60
+2026-08-21T09:10:35.666Z WARN  authsvc.refresh token exp=1755003600 now=1755007205 user=user-014 accepted_expired_refresh=true status=200 -- SHOULD have been 401, ticket AUTH-2214
+2026-08-21T09:10:36.509Z INFO  authsvc.audit event=logout user=user-035 reason=user_request session_age_s=2038
+2026-08-21T09:10:38.824Z INFO  authsvc.http 10.4.9.8 "POST /api/me" status=200 user=user-026 took=18ms bytes=827
+2026-08-21T09:10:42.425Z INFO  authsvc.http 10.4.0.196 "POST /api/refresh" status=200 user=user-031 took=39ms bytes=1487
+2026-08-21T09:10:45.998Z INFO  authsvc.http 10.4.8.24 "POST /api/logout" status=200 user=user-026 took=30ms bytes=1487
+2026-08-21T09:10:47.477Z INFO  authsvc.http 10.4.3.131 "POST /api/me" status=200 user=user-008 took=27ms bytes=387
+2026-08-21T09:10:50.968Z INFO  authsvc.http 10.4.6.22 "POST /api/sessions" status=200 user=user-025 took=43ms bytes=1521
+2026-08-21T09:10:53.194Z INFO  authsvc.http 10.4.2.180 "POST /api/sessions" status=200 user=user-011 took=81ms bytes=2217
+2026-08-21T09:10:54.092Z INFO  authsvc.audit event=logout user=user-026 reason=user_request session_age_s=941
+2026-08-21T09:10:57.049Z INFO  authsvc.http 10.4.9.8 "POST /api/me" status=200 user=user-004 took=170ms bytes=2107
+2026-08-21T09:11:00.549Z INFO  authsvc.http 10.4.6.22 "POST /api/login" status=200 user=user-001 took=70ms bytes=1678
+2026-08-21T09:11:04.374Z INFO  authsvc.http 10.4.3.116 "POST /api/login" status=200 user=user-003 took=52ms bytes=1664
+2026-08-21T09:11:07.075Z DEBUG authsvc.session touch user=user-025 sessions_active=20 idle_reaped=0 timeout_min=30
+2026-08-21T09:11:09.998Z DEBUG authsvc.token issue user=user-007 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=3
+2026-08-21T09:11:12.773Z INFO  authsvc.http 10.4.0.9 "POST /api/sessions" status=200 user=user-010 took=131ms bytes=344
+2026-08-21T09:11:13.039Z DEBUG authsvc.token issue user=user-009 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=26
+2026-08-21T09:11:17.152Z INFO  authsvc.http 10.4.8.77 "POST /api/sessions" status=200 user=user-039 took=159ms bytes=1484
+2026-08-21T09:11:19.402Z INFO  authsvc.http 10.4.3.247 "POST /api/logout" status=200 user=user-020 took=133ms bytes=2360
+2026-08-21T09:11:23.725Z DEBUG authsvc.token issue user=user-037 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=7
+2026-08-21T09:11:26.689Z INFO  authsvc.http 10.4.9.73 "POST /api/sessions" status=200 user=user-008 took=179ms bytes=289
+2026-08-21T09:11:30.271Z DEBUG authsvc.session touch user=user-038 sessions_active=40 idle_reaped=3 timeout_min=30
+2026-08-21T09:11:32.536Z INFO  authsvc.http 10.4.8.24 "POST /health" status=200 user=user-025 took=149ms bytes=630
+2026-08-21T09:11:34.019Z INFO  authsvc.http 10.4.8.52 "POST /api/me" status=200 user=user-029 took=179ms bytes=1015
+2026-08-21T09:11:38.513Z DEBUG authsvc.session touch user=user-031 sessions_active=11 idle_reaped=1 timeout_min=30
+2026-08-21T09:11:41.678Z INFO  authsvc.http 10.4.6.89 "POST /api/me" status=200 user=user-031 took=47ms bytes=2062
+2026-08-21T09:11:44.559Z DEBUG authsvc.session touch user=user-023 sessions_active=19 idle_reaped=3 timeout_min=30
+2026-08-21T09:11:46.980Z INFO  authsvc.http 10.4.3.131 "POST /api/sessions" status=200 user=user-016 took=79ms bytes=1363
+2026-08-21T09:11:48.706Z INFO  authsvc.http 10.4.8.52 "POST /api/me" status=200 user=user-032 took=73ms bytes=1358
+2026-08-21T09:11:49.587Z DEBUG authsvc.token issue user=user-035 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-22
+2026-08-21T09:11:52.043Z INFO  authsvc.http 10.4.5.156 "POST /api/login" status=200 user=user-019 took=116ms bytes=1230
+2026-08-21T09:11:56.219Z INFO  authsvc.http 10.4.1.238 "POST /api/sessions" status=200 user=user-013 took=146ms bytes=1292
+2026-08-21T09:11:58.111Z INFO  authsvc.http 10.4.1.57 "POST /api/refresh" status=200 user=user-038 took=138ms bytes=1133
+2026-08-21T09:11:59.102Z INFO  authsvc.http 10.4.8.52 "POST /health" status=200 user=user-027 took=177ms bytes=743
+2026-08-21T09:12:00.987Z INFO  authsvc.http 10.4.9.228 "POST /api/refresh" status=200 user=user-036 took=124ms bytes=996
+2026-08-21T09:12:03.328Z WARN  authsvc.http 10.4.1.99 rate-limit near threshold user=user-019 window=60s count=51/60
+2026-08-21T09:12:05.547Z INFO  authsvc.http 10.4.9.228 "POST /api/refresh" status=401 user=user-003 took=48ms bytes=328
+2026-08-21T09:12:09.806Z INFO  authsvc.audit event=logout user=user-032 reason=user_request session_age_s=1245
+2026-08-21T09:12:10.009Z INFO  authsvc.http 10.4.3.247 "POST /api/sessions" status=200 user=user-020 took=88ms bytes=1345
+2026-08-21T09:12:14.656Z WARN  authsvc.http 10.4.6.89 rate-limit near threshold user=user-035 window=60s count=52/60
+2026-08-21T09:12:18.279Z INFO  authsvc.http 10.4.7.139 "POST /api/login" status=200 user=user-013 took=120ms bytes=1233
+2026-08-21T09:12:20.014Z INFO  authsvc.http 10.4.7.139 "POST /api/logout" status=200 user=user-022 took=52ms bytes=898
+2026-08-21T09:12:24.846Z INFO  authsvc.http 10.4.6.89 "POST /api/logout" status=200 user=user-028 took=174ms bytes=570
+2026-08-21T09:12:26.143Z INFO  authsvc.http 10.4.8.52 "POST /api/refresh" status=200 user=user-031 took=101ms bytes=1273
+2026-08-21T09:12:29.309Z INFO  authsvc.http 10.4.4.208 "POST /api/sessions" status=200 user=user-038 took=170ms bytes=1652
+2026-08-21T09:12:31.063Z INFO  authsvc.http 10.4.0.196 "POST /api/logout" status=200 user=user-008 took=178ms bytes=2238
+2026-08-21T09:12:34.706Z INFO  authsvc.http 10.4.1.99 "POST /api/logout" status=200 user=user-008 took=59ms bytes=1077
+2026-08-21T09:12:36.489Z INFO  authsvc.audit event=logout user=user-010 reason=user_request session_age_s=1590
+2026-08-21T09:12:40.718Z DEBUG authsvc.session touch user=user-036 sessions_active=16 idle_reaped=1 timeout_min=30
+2026-08-21T09:12:41.538Z INFO  authsvc.http 10.4.6.89 "POST /health" status=200 user=user-029 took=147ms bytes=639
+2026-08-21T09:12:42.848Z INFO  authsvc.http 10.4.8.77 "POST /api/sessions" status=200 user=user-036 took=140ms bytes=793
+2026-08-21T09:12:44.335Z DEBUG authsvc.session touch user=user-034 sessions_active=40 idle_reaped=3 timeout_min=30
+2026-08-21T09:12:45.920Z INFO  authsvc.http 10.4.0.196 "POST /api/login" status=200 user=user-033 took=134ms bytes=1881
+2026-08-21T09:12:49.577Z DEBUG authsvc.session touch user=user-004 sessions_active=22 idle_reaped=0 timeout_min=30
+2026-08-21T09:12:53.260Z INFO  authsvc.http 10.4.4.208 "POST /api/refresh" status=200 user=user-001 took=14ms bytes=441
+2026-08-21T09:12:54.957Z INFO  authsvc.http 10.4.9.228 "POST /api/me" status=200 user=user-005 took=107ms bytes=917
+2026-08-21T09:12:56.784Z INFO  authsvc.http 10.4.8.109 "POST /api/me" status=200 user=user-027 took=99ms bytes=1718
+2026-08-21T09:12:57.699Z DEBUG authsvc.token issue user=user-035 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-25
+2026-08-21T09:12:59.550Z DEBUG authsvc.session touch user=user-026 sessions_active=17 idle_reaped=0 timeout_min=30
+2026-08-21T09:13:00.305Z INFO  authsvc.http 10.4.1.93 "POST /health" status=200 user=user-030 took=139ms bytes=1733
+2026-08-21T09:13:02.253Z INFO  authsvc.http 10.4.8.109 "POST /api/refresh" status=200 user=user-030 took=31ms bytes=1897
+2026-08-21T09:13:03.246Z INFO  authsvc.http 10.4.3.37 "POST /api/login" status=200 user=user-014 took=117ms bytes=379
+2026-08-21T09:13:05.758Z INFO  authsvc.http 10.4.3.116 "POST /api/me" status=200 user=user-003 took=58ms bytes=411
+2026-08-21T09:13:07.515Z INFO  authsvc.http 10.4.1.57 "POST /health" status=200 user=user-019 took=150ms bytes=1493
+2026-08-21T09:13:09.309Z INFO  authsvc.http 10.4.1.93 "POST /api/sessions" status=200 user=user-010 took=79ms bytes=1307
+2026-08-21T09:13:10.570Z WARN  authsvc.http 10.4.8.77 rate-limit near threshold user=user-038 window=60s count=56/60
+2026-08-21T09:13:14.048Z INFO  authsvc.http 10.4.1.99 "POST /health" status=200 user=user-023 took=137ms bytes=1485
+2026-08-21T09:13:18.418Z INFO  authsvc.http 10.4.9.8 "POST /api/me" status=200 user=user-010 took=140ms bytes=2119
+2026-08-21T09:13:20.869Z INFO  authsvc.http 10.4.9.8 "POST /health" status=200 user=user-015 took=121ms bytes=416
+2026-08-21T09:13:24.991Z INFO  authsvc.http 10.4.4.41 "POST /api/sessions" status=200 user=user-027 took=65ms bytes=1224
+2026-08-21T09:13:26.338Z DEBUG authsvc.token issue user=user-006 typ=access ttl=900 alg=HS256 kid=demo-1 iat_skew_ms=-29
+2026-08-21T09:13:28.052Z INFO  authsvc.http 10.4.3.116 "POST /health" status=200 user=user-018 took=13ms bytes=478
+2026-08-21T09:13:30.823Z INFO  authsvc.http 10.4.4.208 "POST /health" status=200 user=user-038 took=125ms bytes=1035
+2026-08-21T09:13:33.310Z INFO  authsvc.audit event=logout user=user-001 reason=user_request session_age_s=540
+2026-08-21T09:13:37.936Z DEBUG authsvc.session touch user=user-016 sessions_active=28 idle_reaped=1 timeout_min=30
+2026-08-21T09:13:40.794Z INFO  authsvc.http 10.4.3.116 "POST /api/me" status=200 user=user-019 took=94ms bytes=1443
+2026-08-21T09:13:43.368Z INFO  authsvc.http 10.4.8.77 "POST /api/me" status=200 user=user-033 took=123ms bytes=1491
+2026-08-21T09:13:45.379Z INFO  authsvc.http 10.4.9.73 "POST /api/login" status=200 user=user-021 took=59ms bytes=777
+2026-08-21T09:13:46.267Z INFO  authsvc.http 10.4.9.228 "POST /api/sessions" status=200 user=user-036 took=109ms bytes=1389
+2026-08-21T09:13:48.200Z INFO  authsvc.http 10.4.1.57 "POST /api/me" status=200 user=user-022 took=65ms bytes=2225
+2026-08-21T09:13:51.263Z DEBUG authsvc.session touch user=user-032 sessions_active=32 idle_reaped=1 timeout_min=30
+2026-08-21T09:13:54.173Z INFO  authsvc.http 10.4.4.208 "POST /api/sessions" status=200 user=user-009 took=141ms bytes=420
+2026-08-21T09:13:55.859Z INFO  authsvc.http 10.4.1.238 "POST /health" status=200 user=user-005 took=4ms bytes=1869
+2026-08-21T09:13:57.862Z INFO  authsvc.http 10.4.3.37 "POST /health" status=200 user=user-015 took=58ms bytes=2251
+2026-08-21T09:14:01.382Z DEBUG authsvc.session touch user=user-004 sessions_active=33 idle_reaped=3 timeout_min=30
+2026-08-21T09:14:02.006Z INFO  authsvc.http 10.4.4.41 "POST /api/me" status=200 user=user-035 took=138ms bytes=1305
+2026-08-21T09:14:05.017Z DEBUG authsvc.session touch user=user-033 sessions_active=14 idle_reaped=0 timeout_min=30
+2026-08-21T09:14:06.536Z INFO  authsvc.http 10.4.1.57 "POST /api/refresh" status=200 user=user-010 took=67ms bytes=1274
+2026-08-21T09:14:10.080Z INFO  authsvc.http 10.4.3.116 "POST /api/me" status=200 user=user-024 took=60ms bytes=1408
+2026-08-21T09:14:11.669Z INFO  authsvc.http 10.4.3.37 "POST /api/me" status=200 user=user-003 took=144ms bytes=2129
+2026-08-21T09:14:12.652Z INFO  authsvc.http 10.4.5.156 "POST /api/refresh" status=200 user=user-001 took=114ms bytes=1536
+2026-08-21T09:14:13.916Z INFO  authsvc.http 10.4.9.228 "POST /api/login" status=200 user=user-034 took=180ms bytes=2127
+2026-08-21T09:14:16.047Z WARN  authsvc.http 10.4.1.93 rate-limit near threshold user=user-005 window=60s count=59/60
+2026-08-21T09:14:17.183Z INFO  authsvc.http 10.4.1.8 "POST /api/refresh" status=401 user=user-021 took=104ms bytes=1405
+2026-08-21T09:14:19.577Z DEBUG authsvc.session touch user=user-016 sessions_active=37 idle_reaped=2 timeout_min=30
+2026-08-21T09:14:23.773Z DEBUG authsvc.session touch user=user-009 sessions_active=35 idle_reaped=2 timeout_min=30
+2026-08-21T09:14:24.100Z INFO  authsvc.http 10.4.1.57 "POST /api/login" status=200 user=user-028 took=160ms bytes=1804
+2026-08-21T09:14:27.030Z INFO  authsvc.http 10.4.7.139 "POST /api/me" status=200 user=user-018 took=94ms bytes=1717
+2026-08-21T09:14:31.190Z INFO  authsvc.http 10.4.1.93 "POST /api/me" status=200 user=user-038 took=161ms bytes=1389
+2026-08-21T09:14:33.730Z INFO  authsvc.http 10.4.3.37 "POST /api/logout" status=200 user=user-005 took=165ms bytes=811
+2026-08-21T09:14:37.324Z INFO  authsvc.http 10.4.1.175 "POST /api/login" status=200 user=user-024 took=81ms bytes=2001

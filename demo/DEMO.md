@@ -66,10 +66,16 @@ Fix the bug live (or let Vibe fix it): in `auth.py`, change the buggy check in
 
 > **Prompt:** "Recall what auth.py looked like — has the refresh check changed?"
 
-`recall_context` should run without you forbidding `read_file`; it detects the
-sha256 mismatch, reports **stale_refreshed** with old/new hashes, and returns
-the *current* file — no rotten memory. Close on `/vm` totals: evictions,
-faults, tokens evicted.
+Two coherence mechanisms fire, and both are showable: the moment the next
+model call happens, VibeVM re-hashes the sources behind resident pages and
+**auto-invalidates** the now-stale auth.py page (run `/vm`: it flipped COLD on
+its own — write-invalidation, like a CPU cache). The model then page-faults it
+back and gets **stale_refreshed** with old/new hashes and the *current* file —
+no rotten memory, whether the page was resident or paged out, whether you or
+Vibe edited the file. Close on `/vm` totals: evictions, faults, tokens
+evicted.
+
+Talking point: *"the context can't lie about a file — resident or paged out."*
 
 > **Closing line:** "Programs stopped needing to fit in RAM decades ago.
 > Agents shouldn't have to fit in a context window either."
@@ -94,9 +100,10 @@ faults, tokens evicted.
   unaffected (stdin is a TTY). Upstream quirk, not a VibeVM behavior.
 - Kill stray `vibe`/`python` processes between rehearsals — an orphaned
   session quietly burns your rate limit.
-- In beat 3, if the model's first recall query is vague it may fetch the log
-  page first; saying "the page for auth.py — the page id is in its
-  [vibevm:paged-out] stub" gets the one-call version.
+- Beat 3 verified with the natural prompt and zero hints: search ranks
+  filename matches first (a query naming auth.py beats the log's term
+  frequency), the coherence pass auto-stubs an edited file's resident page,
+  and the recall came back `stale_refreshed` in a single call.
 
 ## Reset between rehearsals
 

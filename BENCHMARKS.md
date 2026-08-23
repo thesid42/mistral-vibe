@@ -100,6 +100,30 @@ Three honest conclusions:
    runs, command output), only the page store survives compaction — the
    VM-only condition's quote did come through a true page fault.
 
+### Rerun with the page-table fix
+
+Finding 3 motivated a fix: compaction wipes the model's *map* of the store
+(the stubs), so `apply()` now appends a compact catalog of orphaned pages —
+id, type, size, source, summary, deduped per file, capped at 20 entries /
+~600 tokens — onto the compaction envelope itself (pure view transform, no
+history mutation). Rerun of the same hostile pairing
+(session `session_20260822_235756_3cfc9e6d`, home `bench/home-hybrid2`):
+
+| | hybrid, before fix | hybrid, with page table |
+|---|---|---|
+| S1 (investigate) | ✗ turn-capped at 14 calls | **✓ completed in 7 calls** |
+| S1 prompt tokens | 207,198 | **139,664 (−33%)** |
+| Compactions | 2 | **1** |
+| Post-compaction behavior | re-read everything; 3 duplicate copies of the log paged | one targeted re-read (the file it chose to edit); no duplicate log copies |
+| S2 exact errno line | ✓ via disk re-read (grep) | **✓ via `recall_context(page_id="P001")` — a true page fault; the page id was known only from the injected catalog** |
+| Chain total | 248,379 | **156,493** |
+
+The S2 mechanism is the point: the model recalled a page whose stub had been
+destroyed by compaction, addressing it by id straight from the catalog — the
+recovery path that also works when the evidence is ephemeral and there is no
+file to re-read. With the fix, even the misconfigured pairing lands within 4%
+of the clean VM-only condition's cost (156K vs 160K) and stays truthful.
+
 ## Methodology — exact inputs
 
 Every condition ran the identical three prompts, via `uv run vibe` in
